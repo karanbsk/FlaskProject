@@ -1,7 +1,4 @@
 body{
 
-    font-family: 'Courier New', Courier, monospace;
-    text-align: center;
-    margin-top: 50px;
-
-}
+    font-family: 'Courier New', Courier, monospace;margin: 2rem; }
+h1 { margin-bottom: .5rem; }

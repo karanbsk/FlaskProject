@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Flask Project</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <h1>Hello, Flask World!!!</h1>
-
-</body>
-
-</html>
+{% extends "base.html" %}
+{% block title %}Home • FlaskProject{% endblock %}
+{% block content %}
+  <h1>Hello, Flask!</h1>
+  <p>Your blueprint + factory setup is working.</p>
+{% endblock %}
