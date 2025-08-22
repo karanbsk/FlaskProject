@@ -1,13 +1,21 @@
 # app/__init__.py
 from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from app.blueprints.main import main
+from config import DevelopmentConfig, ProductionConfig, TestingConfig
 
-def create_app(config_class="config.DevelopmentConfig"):
+#initialize db
+db = SQLAlchemy()
+
+def create_app(config_class=DevelopmentConfig):
     app = Flask(__name__,template_folder='templates', static_folder='static')
     app.config.from_object(config_class)
 
+    #initialize db with app
+    db.init_app(app)
+    
     #Blueprints
-    from .routes import main_bp
-    app.register_blueprint(main_bp)
+    app.register_blueprint(main)
 
     #Error Handlers
     @app.errorhandler(404)
