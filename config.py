@@ -20,3 +20,4 @@ class TestingConfig(Config):
     DEBUG = True
     # Add testing-specific configs here (e.g., test database URI, etc.)
     
+
