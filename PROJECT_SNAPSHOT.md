@@ -2,7 +2,7 @@
 
 **Project Path:** /home/runner/work/FlaskProject/FlaskProject
 
-**Generated on:** 2025-08-23 07:44:51
+**Generated on:** 2025-08-23 11:13:12
 
 ## Folder Structure
 
@@ -14,6 +14,7 @@ FlaskProject/
     wsgi.py
     create_db.py
     config.py
+    .flake8
     app/
         __init__.py
         blueprints/
@@ -26,6 +27,9 @@ FlaskProject/
             style.css
     tools/
         snapshot_generator.py
+    tests/
+        conftest.py
+        test_routes.py
     .github/
         workflows/
             snapshot.yml
@@ -42,15 +46,7 @@ FlaskProject/
 ### requirements.txt
 
 ```txt
-blinker==1.9.0
-click==8.2.1
-colorama==0.4.6
-Flask==3.1.2
-itsdangerous==2.2.0
-Jinja2==3.1.6
-MarkupSafe==3.0.2
-python-dotenv==1.1.1
-Werkzeug==3.1.3
+# Could not read file: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
 
 ```
 
@@ -161,6 +157,8 @@ app = create_app()
 with app.app_context():
     db.create_all()
     print("Database created successfully!")
+
+
 ```
 
 ### config.py
@@ -188,6 +186,8 @@ class TestingConfig(Config):
     DEBUG = True
     # Add testing-specific configs here (e.g., test database URI, etc.)
     
+
+
 ```
 
 ### app/__init__.py
@@ -223,6 +223,8 @@ def create_app(config_class=DevelopmentConfig):
     
     
     return app
+
+
 ```
 
 ### app/blueprints/main.py
@@ -236,11 +238,15 @@ main = Blueprint('main', __name__)
 @main.route('/')
 def index():
     return render_template('index.html', title="Flask App", message="Hello from a dynamic template!")
+
+
 ```
 
 ### app/blueprints/__init__.py
 
 ```py
+
+
 
 ```
 
@@ -300,7 +306,7 @@ def index():
 </head>
 <body>
     <div class="container">
-        <h1>Hello, Flask!</h1>
+        <h1>Welcome to the Flask App!</h1>
         <p>Your Blueprint + Application Factory setup is working perfectly.</p>
     </div>
     <div class="footer">
@@ -318,6 +324,42 @@ body{
 
     font-family: 'Courier New', Courier, monospace;margin: 2rem; }
 h1 { margin-bottom: .5rem; }
+```
+
+### tests/conftest.py
+
+```py
+import pytest
+from app import create_app, db
+
+@pytest.fixture
+def app():
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
+    })
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+```
+
+### tests/test_routes.py
+
+```py
+def test_index(client):
+    response = client.get('/')
+    
+    assert response.status_code == 200
+    assert b'Welcome to the Flask App!' in response.data
+
 ```
 
 ## Project Overview & Commands
