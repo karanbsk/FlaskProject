@@ -34,7 +34,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 4: Run Snapshot Generator
+        # Step 4: Run Snapshot Generator
       - name: Run Snapshot Generator
         run: |
           # Use bash activation depending on OS
@@ -45,14 +45,23 @@ jobs:
           fi
           python tools/snapshot_generator.py
 
-      - name: Run Flake8 Linting
+        # Step 5: Run Flake8 Linting
+      - name: Run Flake8 Linting                
         run: |
-          source flask_venv/bin/activate
+          if [ -f "flask_venv/bin/activate" ]; then                                         
+            source flask_venv/bin/activate
+          else     
+            source flask_venv/Scripts/activate                                
+          fi  
           flake8 app tests
 
       - name: Run Pytest
         run: |
-          source flask_venv/bin/activate
+          if [ -f "flask_venv/bin/activate" ]; then                                         
+            source flask_venv/bin/activate
+          else     
+             source flask_venv/Scripts/activate                                 
+          fi  
           pytest tests --maxfail=1 --disable-warnings -q
 
       # Step 5: Commit & Push PROJECT_SNAPSHOT.md
