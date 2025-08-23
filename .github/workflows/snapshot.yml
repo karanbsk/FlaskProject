@@ -1,0 +1,54 @@
+name: Generate Project Snapshot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # your Python version
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m venv flask_venv
+          # Use bash activation depending on OS
+          if [ -f "flask_venv/bin/activate" ]; then
+            source flask_venv/bin/activate
+          else 
+            source flask_venv/Scripts/activate
+          fi
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Run Snapshot Generator
+      - name: Run Snapshot Generator
+        run: |
+          # Use bash activation depending on OS
+          if [ -f "flask_venv/bin/activate" ]; then
+            source flask_venv/bin/activate
+          else 
+            source flask_venv/Scripts/activate
+          fi
+          python tools/snapshot_generator.py
+
+      # Step 5: Commit & Push PROJECT_SNAPSHOT.md
+      - name: Commit and Push Snapshot
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_SNAPSHOT.md
+          git commit -m "Update project snapshot [skip ci]" || echo "No changes to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
