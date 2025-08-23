@@ -45,6 +45,16 @@ jobs:
           fi
           python tools/snapshot_generator.py
 
+      - name: Run Flake8 Linting
+        run: |
+          source flask_venv/bin/activate
+          flake8 app tests
+
+      - name: Run Pytest
+        run: |
+          source flask_venv/bin/activate
+          pytest tests --maxfail=1 --disable-warnings -q
+
       # Step 5: Commit & Push PROJECT_SNAPSHOT.md
       - name: Commit and Push Snapshot
         run: |
