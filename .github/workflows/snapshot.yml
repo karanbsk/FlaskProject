@@ -62,6 +62,7 @@ jobs:
           else     
              source flask_venv/Scripts/activate                                 
           fi  
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest tests --maxfail=1 --disable-warnings -q
 
       # Step 5: Commit & Push PROJECT_SNAPSHOT.md
