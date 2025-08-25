@@ -36,7 +36,7 @@
         <p>Your Blueprint + Application Factory setup is working perfectly.</p>
     </div>
     <div class="footer">
-        Powered by Flask | Config: Development
+        Powered by Flask {% if env_name == "Development" %}- This is a Dev Page{% endif %}
     </div>
 </body>
 </html>

@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Development utilities
+autopep8
+flake8
+
+# Testing
+pytest
+pytest-flask
+tox
+coverage

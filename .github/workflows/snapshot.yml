@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repo
+
+
+      # Step 1: Checkout repo via SSH
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -32,7 +34,7 @@ jobs:
             source flask_venv/Scripts/activate
           fi
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
         # Step 4: Run Snapshot Generator
       - name: Run Snapshot Generator
@@ -54,7 +56,7 @@ jobs:
             source flask_venv/Scripts/activate                                
           fi  
           flake8 app tests || true  # Do not fail workflow on lint warnings
-
+        # Step 6: Run Pytest
       - name: Run Pytest
         run: |
           if [ -f "flask_venv/bin/activate" ]; then                                         
@@ -65,15 +67,15 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest tests --maxfail=1 --disable-warnings -q
 
-      # Step 5: Commit & Push PROJECT_SNAPSHOT.md
+        # Step 7: Commit & Push PROJECT_SNAPSHOT.md
       - name: Commit and Push Snapshot
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add PROJECT_SNAPSHOT.md
           git commit -m "Update project snapshot [skip ci]" || echo "No changes to commit"
-          echo "Pushing to branch: ${{ github.ref_name }}"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/${{ github.ref_name }}
+          git push https://$GH_PAT@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/${{ github.ref_name }}
+          echo "Snapshot committed and pushed successfully"
         
