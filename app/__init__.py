@@ -16,6 +16,10 @@ def create_app(config_class=DevelopmentConfig):
     
     #Blueprints
     app.register_blueprint(main)
+    
+    @app.context_processor
+    def inject_env():
+        return dict(env_name=app.config.get("ENV_NAME", "Production"))
 
     #Error Handlers
     @app.errorhandler(404)
@@ -28,4 +32,3 @@ def create_app(config_class=DevelopmentConfig):
     
     
     return app
-
