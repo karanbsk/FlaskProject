@@ -1,26 +1,20 @@
 # PROJECT SNAPSHOT
 
-**Project Path:** g:\Karan\python_projects\FlaskProject
+**Project Path:** /home/runner/work/FlaskProject/FlaskProject
 
-**Generated on:** 2025-08-26 01:04:02
+**Generated on:** 2025-08-26 06:28:58
 
 ## Folder Structure
 
 ```
 FlaskProject/
-    .dockerignore
-    .env
-    .flake8
-    .secrets
-    config.py
-    create_db.py
-    docker-compose.dev.yml
-    Dockerfile
     PROJECT_SNAPSHOT.md
-    README.md
-    requirements-dev.txt
     requirements.txt
+    .dockerignore
+    Dockerfile
+    requirements-dev.txt
     README.md
+    docker-compose.dev.yml
     wsgi.py
     create_db.py
     config.py
@@ -33,11 +27,8 @@ FlaskProject/
         templates/
             base.html
             index.html
-    instance/
-        dev.db
-    tests/
-        conftest.py
-        test_routes.py
+        static/
+            style.css
     tools/
         snapshot_generator.py
     tests/
@@ -50,52 +41,6 @@ FlaskProject/
 
 ## Key Code Snippets
 
-### config.py
-
-```py
-#config.py
-import os
-from flask_sqlalchemy import SQLAlchemy
-
-class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY',"dev-insecure-key")
-    #Add common configs here (e.g., SESSSION_COOKIE_SECURE, etc.)
-    ENV_NAME="Production" # default
-
-class DevelopmentConfig(Config):
-    DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///dev_database.db'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    ENV_NAME="Development" # used in templates
-    
-class ProductionConfig(Config):
-    DEBUG = False
-    # Add production-specific configs here (e.g., database URI, etc.)
-    ENV_NAME="Production" # used in templates
-    
-class TestingConfig(Config):
-    TESTING = True
-    DEBUG = True
-    # Add testing-specific configs here (e.g., test database URI, etc.)
-    
-
-```
-
-### create_db.py
-
-```py
-# create_db.py
-from app import create_app, db
-
-app = create_app()
-
-with app.app_context():
-    db.create_all()
-    print("Database created successfully!")
-
-
-```
-
 ### PROJECT_SNAPSHOT.md
 
 ```md
@@ -105,7 +50,28 @@ with app.app_context():
 ### requirements.txt
 
 ```txt
-# Could not read file: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+# Core framework
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.34
+python-dotenv==1.0.1
+
+```
+
+### requirements-dev.txt
+
+```txt
+-r requirements.txt
+
+# Development utilities
+autopep8
+flake8
+
+# Testing
+pytest
+pytest-flask
+tox
+coverage
 
 ```
 
@@ -192,34 +158,6 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ```
 
-### requirements-dev.txt
-
-```txt
--r requirements.txt
-
-# Development utilities
-autopep8
-flake8
-
-# Testing
-pytest
-pytest-flask
-tox
-coverage
-
-```
-
-### requirements.txt
-
-```txt
-# Core framework
-Flask==3.0.3
-Flask-SQLAlchemy==3.1.1
-SQLAlchemy==2.0.34
-python-dotenv==1.0.1
-
-```
-
 ### wsgi.py
 
 ```py
@@ -258,22 +196,24 @@ from flask_sqlalchemy import SQLAlchemy
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY',"dev-insecure-key")
     #Add common configs here (e.g., SESSSION_COOKIE_SECURE, etc.)
+    ENV_NAME="Production" # default
 
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///dev_database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
+    ENV_NAME="Development" # used in templates
+    
 class ProductionConfig(Config):
     DEBUG = False
     # Add production-specific configs here (e.g., database URI, etc.)
+    ENV_NAME="Production" # used in templates
     
 class TestingConfig(Config):
     TESTING = True
     DEBUG = True
     # Add testing-specific configs here (e.g., test database URI, etc.)
     
-
 
 ```
 
@@ -330,17 +270,11 @@ def index():
     return render_template('index.html', title="Flask App", message="Hello from a dynamic template!")
 
 
-
-
 ```
 
 ### app/blueprints/__init__.py
 
 ```py
-
-
-
-
 
 
 
@@ -403,7 +337,6 @@ def index():
 <body>
     <div class="container">
         <h1>Welcome to the Flask App!</h1>
-        <h1>Welcome to the Flask App!</h1>
         <p>Your Blueprint + Application Factory setup is working perfectly.</p>
     </div>
     <div class="footer">
@@ -414,7 +347,16 @@ def index():
 
 ```
 
-### tests\conftest.py
+### app/static/style.css
+
+```css
+body{
+
+    font-family: 'Courier New', Courier, monospace;margin: 2rem; }
+h1 { margin-bottom: .5rem; }
+```
+
+### tests/conftest.py
 
 ```py
 import pytest
@@ -439,7 +381,7 @@ def client(app):
 
 ```
 
-### tests\test_routes.py
+### tests/test_routes.py
 
 ```py
 def test_index(client):
