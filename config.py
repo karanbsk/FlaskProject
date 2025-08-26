@@ -3,17 +3,28 @@ import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# Determine environment (default: development)
+FLASK_ENV = os.environ.get("FLASK_ENV", "development")
+
+# Handle SECRET_KEY centrally
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if FLASK_ENV == "production":
+        raise ValueError("Production SECRET_KEY must be set as an environment variable!")
+    else:
+        SECRET_KEY = "dev-secret-key"  # Safe for dev/testing/CI
+        
 class Config:
     """
     Base configuration:
-    - Use environment variables for secrets and database URIs
-    - Provide sane defaults for development
+    - Centralized SECRET_KEY handling
+    - Secure defaults for production
     """
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-key')  # Must override in production
+    SECRET_KEY = SECRET_KEY
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    ENV_NAME = "Production"  # Default
     SESSION_COOKIE_SECURE = True  # Cookies only sent over HTTPS
     REMEMBER_COOKIE_SECURE = True
+    ENV_NAME = "Base"
     # Add other security settings as needed
     # e.g., CSRF_COOKIE_SECURE, PERMANENT_SESSION_LIFETIME, etc.
 
@@ -33,11 +44,7 @@ class ProductionConfig(Config):
         'PROD_DATABASE_URI',
         f"sqlite:///{os.path.join(basedir, 'prod_database.db')}"
     )
-    # SECRET_KEY must always come from environment in production
 
-# Ensure production SECRET_KEY is set securely
-if ProductionConfig.SECRET_KEY == 'dev-insecure-key':
-    raise ValueError("Production SECRET_KEY must be set as an environment variable!")
 
 class TestingConfig(Config):
     TESTING = True
