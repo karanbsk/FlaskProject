@@ -2,7 +2,7 @@
 
 **Project Path:** /home/runner/work/FlaskProject/FlaskProject
 
-**Generated on:** 2025-08-26 06:28:58
+**Generated on:** 2025-08-26 09:47:27
 
 ## Folder Structure
 
@@ -16,6 +16,7 @@ FlaskProject/
     README.md
     docker-compose.dev.yml
     wsgi.py
+    docker-compose.prod.yml
     create_db.py
     config.py
     .flake8
@@ -55,6 +56,7 @@ Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.34
 python-dotenv==1.0.1
+gunicorn>=21.2
 
 ```
 
