@@ -11,5 +11,6 @@ services:
       - "8000:8000"  # Expose production port
     environment:
       - FLASK_APP=wsgi
-      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - APP_CONFIG=production
     command: gunicorn --bind 0.0.0.0:8000 wsgi:app
