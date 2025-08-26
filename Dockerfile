@@ -26,10 +26,11 @@ COPY requirements-dev.txt .
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt \
     && pip install -r requirements-dev.txt
+COPY . .
 
 ENV PATH=/install/bin:$PATH \
     FLASK_APP=wsgi \
-    FLASK_ENV=development
+    APP_CONFIG=development
 
 WORKDIR /app
 
@@ -46,7 +47,12 @@ WORKDIR /app
 
 # Copy dependencies and app from builder
 COPY --from=builder /install /usr/local
-COPY --from=builder /app /app
+#COPY --from=builder /app /app
+
+# Copy only the folders/files needed for prod
+COPY app/ ./app/
+COPY wsgi.py .
+COPY config.py .
 
 # Add non-root user
 RUN useradd -u 1000 --create-home appuser \
