@@ -1,51 +1,46 @@
 # PROJECT SNAPSHOT
 
-**Project Path:** /home/runner/work/FlaskProject/FlaskProject
+**Project Path:** /mnt/g/Karan/python_projects/FlaskProject
 
-**Generated on:** 2025-08-26 06:28:58
+**Generated on:** 2025-08-26 16:28:01
 
 ## Folder Structure
 
 ```
 FlaskProject/
-    PROJECT_SNAPSHOT.md
-    requirements.txt
     .dockerignore
-    Dockerfile
-    requirements-dev.txt
-    README.md
-    docker-compose.dev.yml
-    wsgi.py
-    create_db.py
-    config.py
+    requirements.txt
+    docker-compose.prod.yml
     .flake8
+    requirements-dev.txt
+    PROJECT_SNAPSHOT.md
+    config.py
+    README.md
+    wsgi.py
+    Dockerfile
+    docker-compose.dev.yml
+    create_db.py
+    tests/
+        test_routes.py
+        conftest.py
+    .github/
+        workflows/
+            snapshot.yml
     app/
         __init__.py
         blueprints/
             main.py
             __init__.py
+        static/
+            style.css
         templates/
             base.html
             index.html
-        static/
-            style.css
     tools/
         snapshot_generator.py
-    tests/
-        conftest.py
-        test_routes.py
-    .github/
-        workflows/
-            snapshot.yml
 ```
 
 ## Key Code Snippets
-
-### PROJECT_SNAPSHOT.md
-
-```md
-
-```
 
 ### requirements.txt
 
@@ -55,6 +50,7 @@ Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.34
 python-dotenv==1.0.1
+gunicorn>=21.2
 
 ```
 
@@ -72,6 +68,70 @@ pytest
 pytest-flask
 tox
 coverage
+
+```
+
+### PROJECT_SNAPSHOT.md
+
+```md
+
+```
+
+### config.py
+
+```py
+# config.py
+import os
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+class Config:
+    """
+    Base configuration:
+    - Use environment variables for secrets and database URIs
+    - Provide sane defaults for development
+    """
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-key')  # Must override in production
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    ENV_NAME = "Production"  # Default
+    SESSION_COOKIE_SECURE = True  # Cookies only sent over HTTPS
+    REMEMBER_COOKIE_SECURE = True
+    # Add other security settings as needed
+    # e.g., CSRF_COOKIE_SECURE, PERMANENT_SESSION_LIFETIME, etc.
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    ENV_NAME = "Development"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DEV_DATABASE_URI',
+        f"sqlite:///{os.path.join(basedir, 'dev_database.db')}"
+    )
+    SESSION_COOKIE_SECURE = False  # Allow insecure cookies for local dev
+
+class ProductionConfig(Config):
+    DEBUG = False
+    ENV_NAME = "Production"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'PROD_DATABASE_URI',
+        f"sqlite:///{os.path.join(basedir, 'prod_database.db')}"
+    )
+    # SECRET_KEY must always come from environment in production
+
+# Ensure production SECRET_KEY is set securely
+if ProductionConfig.SECRET_KEY == 'dev-insecure-key':
+    raise ValueError("Production SECRET_KEY must be set as an environment variable!")
+
+class TestingConfig(Config):
+    TESTING = True
+    DEBUG = True
+    ENV_NAME = "Testing"
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'TEST_DATABASE_URI',
+        f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
+    )
+    SESSION_COOKIE_SECURE = False
+
+    
 
 ```
 
@@ -175,45 +235,51 @@ if __name__ == '__main__':
 
 ```py
 # create_db.py
+import os
 from app import create_app, db
 
 app = create_app()
 
 with app.app_context():
     db.create_all()
-    print("Database created successfully!")
-
+    config_name = os.getenv("APP_CONFIG", "development").lower()
+    print(f"Database created for {config_name.upper()} successfully!")
 
 ```
 
-### config.py
+### tests/test_routes.py
 
 ```py
-#config.py
-import os
-from flask_sqlalchemy import SQLAlchemy
+def test_index(client):
+    response = client.get('/')
+    
+    assert response.status_code == 200
+    assert b'Welcome to the Flask App!' in response.data
 
-class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY',"dev-insecure-key")
-    #Add common configs here (e.g., SESSSION_COOKIE_SECURE, etc.)
-    ENV_NAME="Production" # default
+```
 
-class DevelopmentConfig(Config):
-    DEBUG = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///dev_database.db'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    ENV_NAME="Development" # used in templates
-    
-class ProductionConfig(Config):
-    DEBUG = False
-    # Add production-specific configs here (e.g., database URI, etc.)
-    ENV_NAME="Production" # used in templates
-    
-class TestingConfig(Config):
-    TESTING = True
-    DEBUG = True
-    # Add testing-specific configs here (e.g., test database URI, etc.)
-    
+### tests/conftest.py
+
+```py
+import pytest
+from app import create_app, db
+
+@pytest.fixture
+def app():
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
+    })
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
 ```
 
@@ -221,6 +287,7 @@ class TestingConfig(Config):
 
 ```py
 # app/__init__.py
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from app.blueprints.main import main
@@ -229,10 +296,25 @@ from config import DevelopmentConfig, ProductionConfig, TestingConfig
 #initialize db
 db = SQLAlchemy()
 
-def create_app(config_class=DevelopmentConfig):
+# Map string to config class
+CONFIG_MAP = {
+    "development": DevelopmentConfig,
+    "testing": TestingConfig,
+    "production": ProductionConfig
+}
+
+def create_app():
+        
+    # Load config based on environment variable
+    config_name = os.getenv("APP_CONFIG", "development").lower()
+    config_class = CONFIG_MAP.get(config_name, DevelopmentConfig)
+    
+    #Initialize Flask App
     app = Flask(__name__,template_folder='templates', static_folder='static')
     app.config.from_object(config_class)
-
+    
+    app.debug = True if config_name == "development" else False
+    
     #initialize db with app
     db.init_app(app)
     
@@ -278,6 +360,15 @@ def index():
 
 
 
+```
+
+### app/static/style.css
+
+```css
+body{
+
+    font-family: 'Courier New', Courier, monospace;margin: 2rem; }
+h1 { margin-bottom: .5rem; }
 ```
 
 ### app/templates/base.html
@@ -344,51 +435,6 @@ def index():
     </div>
 </body>
 </html>
-
-```
-
-### app/static/style.css
-
-```css
-body{
-
-    font-family: 'Courier New', Courier, monospace;margin: 2rem; }
-h1 { margin-bottom: .5rem; }
-```
-
-### tests/conftest.py
-
-```py
-import pytest
-from app import create_app, db
-
-@pytest.fixture
-def app():
-    app = create_app()
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
-    })
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()
-
-```
-
-### tests/test_routes.py
-
-```py
-def test_index(client):
-    response = client.get('/')
-    
-    assert response.status_code == 200
-    assert b'Welcome to the Flask App!' in response.data
 
 ```
 
