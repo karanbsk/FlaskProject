@@ -2,80 +2,86 @@ name: Generate Project Snapshot
 
 on:
   push:
-    branches: [main]           # Or other branches you want auto-snapshot
+    branches: [main]      # Trigger on push to main
   pull_request:
-    branches: [main]           # Run on PR merges into main
+    branches: [main]      # Trigger on PR merges into main
 
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    env:
+      FLASK_ENV: development   # Prevent production mode issues
+      SECRET_KEY: ${{ secrets.SECRET_KEY || 'dummy-secret-key' }} # fallback for CI
 
     steps:
-
-
-      # Step 1: Checkout repo via SSH
+      # ✅ Step 1: Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Python
+      # ✅ Step 2: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # your Python version
+          python-version: "3.10"
 
-      # Step 3: Install dependencies
+      # ✅ Step 3: Create virtual environment & install dependencies
       - name: Install dependencies
         run: |
           python -m venv flask_venv
-          # Use bash activation depending on OS
           if [ -f "flask_venv/bin/activate" ]; then
             source flask_venv/bin/activate
-          else 
+          else
             source flask_venv/Scripts/activate
           fi
           pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+          pip install flake8 pytest
 
-        # Step 4: Run Snapshot Generator
-      - name: Run Snapshot Generator
+      # ✅ Step 4: Generate PROJECT_SNAPSHOT.md (with commit info & dependencies)
+      - name: Generate PROJECT_SNAPSHOT.md
         run: |
-          # Use bash activation depending on OS
+          echo "# Project Snapshot" > PROJECT_SNAPSHOT.md
+          echo "" >> PROJECT_SNAPSHOT.md
+          echo "## Latest Commit Info" >> PROJECT_SNAPSHOT.md
+          git log -1 --pretty=format:"%h - %s (%ci) by %an" >> PROJECT_SNAPSHOT.md
+          echo "" >> PROJECT_SNAPSHOT.md
+          echo "## Installed Dependencies" >> PROJECT_SNAPSHOT.md
           if [ -f "flask_venv/bin/activate" ]; then
             source flask_venv/bin/activate
-          else 
+          else
             source flask_venv/Scripts/activate
           fi
-          python tools/snapshot_generator.py
+          pip freeze >> PROJECT_SNAPSHOT.md
 
-        # Step 5: Run Flake8 Linting
-      - name: Run Flake8 Linting                
+      # ✅ Step 5: Run Flake8 Linting
+      - name: Run Flake8 Linting
         run: |
-          if [ -f "flask_venv/bin/activate" ]; then                                         
+          if [ -f "flask_venv/bin/activate" ]; then
             source flask_venv/bin/activate
-          else     
-            source flask_venv/Scripts/activate                                
-          fi  
+          else
+            source flask_venv/Scripts/activate
+          fi
           flake8 app tests || true  # Do not fail workflow on lint warnings
-        # Step 6: Run Pytest
+
+      # ✅ Step 6: Run Pytest
       - name: Run Pytest
         run: |
-          if [ -f "flask_venv/bin/activate" ]; then                                         
+          if [ -f "flask_venv/bin/activate" ]; then
             source flask_venv/bin/activate
-          else     
-             source flask_venv/Scripts/activate                                 
-          fi  
+          else
+            source flask_venv/Scripts/activate
+          fi
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest tests --maxfail=1 --disable-warnings -q
 
-        # Step 7: Commit & Push PROJECT_SNAPSHOT.md
-      - name: Commit and Push Snapshot
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+      # ✅ Step 7: Commit & Push Snapshot (avoid merge conflicts)
+      - name: Commit & Push PROJECT_SNAPSHOT.md
         run: |
-          git config --local user.name "github-actions[bot]"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git pull origin main --rebase
           git add PROJECT_SNAPSHOT.md
-          git commit -m "Update project snapshot [skip ci]" || echo "No changes to commit"
-          git push https://$GH_PAT@github.com/${GITHUB_REPOSITORY}.git HEAD:refs/heads/${{ github.ref_name }}
-          echo "Snapshot committed and pushed successfully"
-        
+          git commit -m "Update PROJECT_SNAPSHOT.md [skip ci]" || echo "No changes to commit"
+          git push origin main
