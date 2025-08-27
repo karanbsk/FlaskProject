@@ -34,7 +34,7 @@ jobs:
               run: |
                 export PYTHONPATH=$PWD  
                 pytest
-                     
+             
             # Step 5: Login to GHCR
             - name: Log in to GHCR
               uses: docker/login-action@v2
@@ -62,3 +62,7 @@ jobs:
                 package-name: 'flaskapp'
                 package-type: 'container'
                 min-versions-to-keep: 2
+                delete-only-pre-release-versions: false
+                delete-only-untagged-versions: false
+                ignore-versions: latest
+                token: ${{ secrets.GHCR_PAT }}
