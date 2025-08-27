@@ -9,9 +9,6 @@ on:
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
-        env:
-            GHCR_PAT: ${{ secrets.GHCR_PAT }}
-
         
         steps:
             # Step 1: Checkout code
@@ -40,8 +37,7 @@ jobs:
                      
             # Step 5: Login to GHCR
             - name: Log in to GHCR
-              run: echo "$GHCR_PAT" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-              
+              run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
             # Step 6: Build and push Docker image with SHA and latest tags
             - name: Build and push Docker image

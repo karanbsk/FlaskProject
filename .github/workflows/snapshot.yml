@@ -77,11 +77,22 @@ jobs:
       # ✅ Step 7: Commit & Push Snapshot (avoid merge conflicts)
       - name: Commit & Push PROJECT_SNAPSHOT.md
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout main
-          git pull origin main --rebase
-          git add -f PROJECT_SNAPSHOT.md
-          git commit -m "Update PROJECT_SNAPSHOT.md [skip ci]" || echo "No changes to commit"
-          git push origin main
+           git config --global user.name "github-actions[bot]"
+           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    
+           # Fetch latest main
+           git fetch origin main
+           git checkout main
+    
+           # Stage snapshot
+           git add -f PROJECT_SNAPSHOT.md
+    
+           # Commit only if changes exist
+           git commit -m "Update PROJECT_SNAPSHOT.md [skip ci]" || echo "No changes to commit"
+    
+           # Pull with autostash to avoid rebase conflict
+           git pull --rebase --autostash origin main
+    
+           # Push committed changes
+           git push origin main
+  
