@@ -39,7 +39,6 @@ jobs:
                 export PYTHONPATH=$PWD  
                 pytest
                      
-
             # Step 5: Login to GHCR
             - name: Log in to GHCR
               run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
