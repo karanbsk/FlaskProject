@@ -1,0 +1,63 @@
+name: Flask CI/CD with GHCR
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+        
+        steps:
+            # Step 1: Checkout code
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            # Step 2: Set up Python
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            # Step 3: Install dependencies
+            - name: Install dependencies    
+              run: |
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                export PYTHONPATH=$PWD
+                pip install pytest
+                
+            # Step 4: Run tests
+            - name: Run tests
+              run: |
+                export PYTHONPATH=$PWD  
+                pytest
+                     
+
+            # Step 5: Login to GHCR
+            - name: Log in to GHCR
+              run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+              
+
+            # Step 6: Build and push Docker image with commit SHA tag
+            - name: Build and push Docker image with commit SHA tag
+              run: |
+                IMAGE_TAG=${{ github.sha }}
+                IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/flaskapp:$IMAGE_TAG
+                docker build -t $IMAGE_NAME .
+                docker push $IMAGE_NAME
+
+
+            # Step 7: Delete older images to save space (keep only the latest 2)
+            - name: Delete old images
+              uses: actions/delete-package-versions@v5
+              with:
+                package-name: 'flaskapp'
+                package-type: 'container'
+                min-versions-to-keep: 2
