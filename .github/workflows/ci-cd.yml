@@ -42,7 +42,7 @@ jobs:
 
             # Step 5: Login to GHCR
             - name: Log in to GHCR
-              run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+              run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
               
 
             # Step 6: Build and push Docker image with commit SHA tag
