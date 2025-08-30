@@ -55,15 +55,17 @@ COPY wsgi.py .
 COPY config.py .
 COPY migrations/ ./migrations/
 
+# Entrypoint script to run migrations and start the app
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Add non-root user
 RUN useradd -u 1000 --create-home appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
-# Entrypoint script to run migrations and start the app
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+
 ENV GUNICORN_WORKERS=3
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--workers", "${GUNICORN_WORKERS}", "--threads", "2"]
