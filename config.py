@@ -14,13 +14,10 @@ if config_name == "development":
     os.environ.setdefault("POSTGRES_HOST", "db") # Docker service name
     os.environ.setdefault("POSTGRES_PORT", "5432") 
 
-# Handle SECRET_KEY centrally
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    if config_name == "production":
-        raise ValueError("Production SECRET_KEY must be set as an environment variable!")
-    else:
-        SECRET_KEY = "dev-secret-key"  # Safe for dev/testing/CI
+# Handle SECRET_KEY dynamically
+SECRET_KEY = os.getenv("SECRET_KEY") or (
+    "dev-secret-key" if config_name != "production" else None
+)
 
 # Helper function to build Postgres URI        
 def build_postgres_uri():
@@ -67,14 +64,6 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = build_postgres_uri() or f"sqlite:///{os.path.join(basedir, 'dev_database.db')}"
     SQLALCHEMY_ECHO = True # Log SQL queries for debugging
 
-class ProductionConfig(Config):
-    DEBUG = False
-    ENV_NAME = "Production"
-    SQLALCHEMY_DATABASE_URI = build_postgres_uri() 
-    if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("Postgres URI must be set in Production!") # Ensure DB URI is set
-
-
 class TestingConfig(Config):
     TESTING = True
     DEBUG = True
@@ -89,7 +78,19 @@ class TestingConfig(Config):
             'TEST_DATABASE_URI',
             f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
         )
+
+class ProductionConfig(Config):
+    DEBUG = False
+    ENV_NAME = "Production"
+    SQLALCHEMY_DATABASE_URI = None # 
     
+    @classmethod
+    def init_db_uri(cls):
+         cls.SQLALCHEMY_DATABASE_URI = build_postgres_uri() 
+         if not cls.SQLALCHEMY_DATABASE_URI:
+            raise ValueError("Postgres URI must be set in Production!") # Ensure DB URI is set
+         if not os.getenv("SECRET_KEY"):
+            raise ValueError("Production SECRET_KEY must be set as an environment variable!")
 """
 Configuration Loader:
 - Reads APP_CONFIG from environment (default: development)
@@ -99,15 +100,21 @@ Configuration Loader:
 # Map string to config class    
 CONFIG_MAP = {
     "development": DevelopmentConfig,
-    "production": ProductionConfig,
-    "testing": TestingConfig
+    "testing": TestingConfig,
+    "production": ProductionConfig
+    
 }
 
 # Function to get config class based on environment variable
 def get_config():
     """Return the appropriate config class based on APP_CONFIG environment variable."""
-    config_name = os.getenv("APP_CONFIG", "development").lower()
-    return CONFIG_MAP.get(config_name, DevelopmentConfig)    
+    env = os.getenv("APP_CONFIG", "development").lower()
+    print(f" Loading configuration: {env}") 
+    config_class = CONFIG_MAP.get(env, DevelopmentConfig)
+    #Only validate production config here, not at import time
+    if env == ProductionConfig:
+        config_class.init_db_uri()  # Ensure DB URI is set for Production
+    return config_class    
 
 # Helper function to get config name
 def get_config_name():
