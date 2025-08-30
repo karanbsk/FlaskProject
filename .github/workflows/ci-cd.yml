@@ -64,7 +64,6 @@ jobs:
                 package-name: 'flaskapp'
                 package-type: 'container'
                 min-versions-to-keep: 2
-                num-old-versions-to-delete: 10  # Delete up to 10 old versions
                 delete-only-pre-release-versions: false
                 delete-only-untagged-versions: false
                 ignore-versions: latest
