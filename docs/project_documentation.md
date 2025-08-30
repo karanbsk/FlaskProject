@@ -56,6 +56,35 @@ The purpose of this project is to create a fully documented, containerized Flask
 **Production Environment (Planned):**  
 - Flask App Container + Database managed by AWS RDS / Managed Service
 
+**Database Strategy Across Environments**
+
+1. Development Environment (Dev)
+    - Full integration of FlaskApp + Postgres DB in local Docker containers.
+    - Tables are created, sample data inserted, and all CRUD APIs tested successfully.
+    - Confirms that the application works seamlessly with Postgres.
+
+2. Continuous Integration (CI) Workflows
+    - SQLite (in-memory or file-based) is used instead of Postgres.
+        - Purpose:
+            - Fast and isolated testing of Flask app logic and routes.
+            - Snapshot generation and unit tests can run without spinning up a full Postgres instance.
+            - Ensures CI is lightweight and repeatable.
+        - Impact:
+            - CI tests do not validate Postgres-specific behaviors.
+            - Production and Dev integrations remain unaffected.
+
+3. Production Environment (Prod)
+    - Managed Postgres DB via AWS RDS or equivalent.
+    - Since Dev already validated FlaskApp integration with Postgres, risk of issues in Prod is minimal.
+    - Deployment involves connecting the FlaskApp container to the managed DB—no code changes needed.
+
+4. Best Practices & Justification
+    - Using a different DB in CI is safe because CI is focused on code correctness, not DB-specific behavior.
+    - Postgres validation is guaranteed in Dev and replicated in Prod.
+    - Ensures fast CI pipelines, minimal infrastructure overhead, and safe deployments.
+
+![Getting Started](db_flow.png)
+
 **Project Snapshot Highlights:**  
 - Flask app using Factory pattern and Blueprints  
 - Centralized configuration via .env and config.py  
