@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}User List{% endblock %}
+{% block content %}
+<h2>User List</h2>
+
+<!-- Create User Button -->
+<button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#createUserModal">Add User</button>
+
+<!-- User Table -->
+<table class="table table-striped">
+    <thead>
+        <tr><th>ID</th><th>Username</th><th>Email</th><th>Created</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            <td>
+                <!-- Edit Button -->
+                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">Edit</button>
+                <!-- Delete Button -->
+                <form action="{{ url_for('main.delete_user_ui', user_id=user.id) }}" method="POST" style="display:inline;">
+                    <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                    </form>
+            </td>
+        </tr>
+
+
+        <!-- Edit User Modal -->
+        <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form action="{{ url_for('main.edit_user_ui', user_id=user.id) }}" method="POST">
+                <div class="modal-header">
+                  <h5 class="modal-title">Edit User</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label>Username</label>
+                    <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
+                  </div>
+                  <div class="mb-3">
+                    <label>Email</label>
+                    <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not users %}
+<p>No users found.</p>
+{% endif %}
+
+
+<!-- Create User Modal -->
+ <div class="modal fade" id="createUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('main.create_user_ui') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label>Username</label>
+            <input type="text" class="form-control" name="username" required>
+          </div>
+          <div class="mb-3">
+            <label>Email</label>
+            <input type="email" class="form-control" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label>Password</label>
+            <input type="password" class="form-control" name="password" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-success" type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

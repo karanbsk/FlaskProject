@@ -1,3 +1,4 @@
+# routes.py
 from flask import jsonify, Blueprint, request
 from app.models import User, db
 from sqlalchemy.exc import IntegrityError

@@ -6,7 +6,7 @@ services:
       context: .
       target: dev   # Use dev stage in Dockerfile
     container_name: flask_web
-    command: flask run --host=0.0.0.0 --reload
+    command: flask run --host=0.0.0.0 --reload --extra-files /app/templates
     env_file:
       - .env
     ports:
@@ -15,6 +15,8 @@ services:
       - db
     volumes:
       - .:/app  # Code changes reflected immediately
+      - ./templates:/app/templates
+      - ./static:/app/static
     networks:
       - flask_network
 

@@ -7,13 +7,6 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Determine environment variables
 config_name = os.getenv("APP_CONFIG", "development").lower()
 
-if config_name == "development":
-    os.environ.setdefault("POSTGRES_USER", "postgres")
-    os.environ.setdefault("POSTGRES_PASSWORD", "postgres") 
-    os.environ.setdefault("POSTGRES_DB", "flaskdb") # Dev DB name
-    os.environ.setdefault("POSTGRES_HOST", "db") # Docker service name
-    os.environ.setdefault("POSTGRES_PORT", "5432") 
-
 # Handle SECRET_KEY dynamically
 SECRET_KEY = os.getenv("SECRET_KEY") or (
     "dev-secret-key" if config_name != "production" else None
@@ -21,11 +14,11 @@ SECRET_KEY = os.getenv("SECRET_KEY") or (
 
 # Helper function to build Postgres URI        
 def build_postgres_uri():
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
+    user = os.getenv("POSTGRES_USER", "fallback_user")
+    password = os.getenv("POSTGRES_PASSWORD", "fallback_password")
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_PORT", "5432")
-    db_name = os.getenv("POSTGRES_DB")
+    db_name = os.getenv("POSTGRES_DB", "fallback_db")
     if all([user, password, host, port, db_name]):
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
     return None
@@ -58,6 +51,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV_NAME = "Development"
+    TEMPLATES_AUTO_RELOAD = True
     SESSION_COOKIE_SECURE = False  # Allow for local dev
     REMEMBER_COOKIE_SECURE = False  # Allow for local dev
     CSRF_COOKIE_SECURE = False  # Allow for local dev

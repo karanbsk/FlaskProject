@@ -25,10 +25,27 @@ def create_app():
         else:
             config_class.init_db_uri() # Ensure DB URI is set for Production
         
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(base_dir, 'templates')
+    static_path = os.path.join(base_dir, 'static')
              
     #Initialize Flask App
-    app = Flask(__name__,template_folder='templates', static_folder='static')
+    app = Flask(__name__,template_folder=template_path, static_folder=static_path)
     app.config.from_object(config_class)
+    
+    
+    app.config.from_object(get_config())
+     
+     
+    app.jinja_env.auto_reload = app.debug  
+    # Force Flask/Jinja template auto-reload
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    app.jinja_env.auto_reload = app.config['TEMPLATES_AUTO_RELOAD']
+    if app.debug:
+        @app.before_request
+        def clear_jinja_cache():
+            app.jinja_env.cache = {}
+    
     
     # Set up logging
     log_level = app.config.get("LOG_LEVEL", "INFO")

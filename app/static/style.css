@@ -2,3 +2,16 @@ body{
 
     font-family: 'Courier New', Courier, monospace;margin: 2rem; }
 h1 { margin-bottom: .5rem; }
+.db-status.up {
+    color: green !important;
+    font-weight: bold !important;
+    font-size: 1.2em !important; /* Bigger */
+    margin-left: 10px;
+}
+
+.db-status.down {
+    color: red !important;
+    font-weight: bold !important;
+    font-size: 1.4em !important;
+    margin-left: 10px;
+}
