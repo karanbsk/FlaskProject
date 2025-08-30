@@ -80,10 +80,15 @@ class TestingConfig(Config):
     DEBUG = True
     ENV_NAME = "Testing"
     SESSION_COOKIE_SECURE = False  
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        'TEST_DATABASE_URI',
-        f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
-    )
+    
+    # Use in-memory DB for snapshot generation
+    if os.getenv("SNAPSHOT_GENERATION", "false").lower() == "true":
+        SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    else:
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            'TEST_DATABASE_URI',
+            f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
+        )
     
 """
 Configuration Loader:

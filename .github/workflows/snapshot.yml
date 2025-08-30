@@ -12,7 +12,7 @@ jobs:
     env:
       FLASK_ENV: development   # Prevent production mode issues
       SECRET_KEY: ${{ secrets.SECRET_KEY || 'dummy-secret-key' }} # fallback for CI
-
+      
     steps:
       # ✅ Step 1: Checkout the repository
       - name: Checkout repository
@@ -54,6 +54,11 @@ jobs:
           fi
           pip freeze >> docs/project_snapshot.md
 
+          # ✅ Add note about SQLite testing
+          echo "" >> docs/project_snapshot.md
+          echo "> Note: For CI snapshot generation, tests run against an in-memory SQLite database." >> docs/project_snapshot.md
+          echo "> Development and production environments use Postgres." >> docs/project_snapshot.md
+
       # ✅ Step 5: Run Flake8 Linting
       - name: Run Flake8 Linting
         run: |
@@ -66,6 +71,9 @@ jobs:
 
       # ✅ Step 6: Run Pytest
       - name: Run Pytest
+        env:
+          APP_CONFIG: "testing"
+          SNAPSHOT_GENERATION: "true"  # Use in-memory DB for snapshot generation
         run: |
           if [ -f "flask_venv/bin/activate" ]; then
             source flask_venv/bin/activate
@@ -74,10 +82,12 @@ jobs:
           fi
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest tests --maxfail=1 --disable-warnings -q
-
+     
       # ✅ Step 7: Commit & Push Snapshot (avoid merge conflicts)
       - name: Commit & Push PROJECT_SNAPSHOT.md
+        if: github.event_name != 'push' && github.event_name != 'pull_request' 
         run: |
+           # Configure Git user
            git config --global user.name "github-actions[bot]"
            git config --global user.email "github-actions[bot]@users.noreply.github.com"
     
