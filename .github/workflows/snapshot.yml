@@ -40,6 +40,7 @@ jobs:
       # ✅ Step 4: Generate PROJECT_SNAPSHOT.md (with commit info & dependencies)
       - name: Generate PROJECT_SNAPSHOT.md
         run: |
+          mkdir -p docs
           echo "# Project Snapshot" > PROJECT_SNAPSHOT.md
           echo "" >> PROJECT_SNAPSHOT.md
           echo "## Latest Commit Info" >> PROJECT_SNAPSHOT.md
@@ -51,7 +52,7 @@ jobs:
           else
             source flask_venv/Scripts/activate
           fi
-          pip freeze >> PROJECT_SNAPSHOT.md
+          pip freeze >> docs/project_snapshot.md
 
       # ✅ Step 5: Run Flake8 Linting
       - name: Run Flake8 Linting
@@ -85,7 +86,7 @@ jobs:
            git checkout main
     
            # Stage snapshot
-           git add -f PROJECT_SNAPSHOT.md
+           git add -f docs/project_snapshot.md
     
            # Commit only if changes exist
            git commit -m "Update PROJECT_SNAPSHOT.md [skip ci]" || echo "No changes to commit"

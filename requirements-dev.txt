@@ -1,3 +1,4 @@
+# Include base requirements
 -r requirements.txt
 
 # Development utilities
@@ -9,3 +10,6 @@ pytest
 pytest-flask
 tox
 coverage
+
+# Database migration
+Flask-Migrate

@@ -205,4 +205,9 @@ __marimo__/
 
 # Ignore secrets used by act
 .secrets
-PROJECT_SNAPSHOT.md
+
+#Ignore DB files
+*.db
+*.sqlite3
+*.sqlite3-journal
+postgres_data/
