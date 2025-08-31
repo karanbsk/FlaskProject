@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>App Dashboard</h2>
+<ul class="list-group">
+<li class="list-group-item">
+    <strong>Database Status:</strong>
+    <span class="db-status {{ 'up' if db_status == 'Up' else 'down' }}">
+        {{ db_status }}
+    </span>
+</li>
+    <li class="list-group-item"><strong>Server Time:</strong> {{ server_time }}</li>
+    <li class="list-group-item"><strong>Hostname:</strong> {{ hostname }}</li>
+    <li class="list-group-item"><strong>Environment:</strong> {{ env_name }}</li>
+</ul>
+{% endblock %}

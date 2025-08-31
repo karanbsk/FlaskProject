@@ -1,3 +1,4 @@
+#Dockerfile
 # ---- builder: install core dependencies ----
 FROM python:3.11-slim AS builder
 
@@ -23,14 +24,12 @@ FROM builder AS dev
 
 # Install dev packages into /install
 COPY requirements-dev.txt .
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip install -r requirements-dev.txt
-COPY . .
+RUN pip install -r requirements-dev.txt 
 
 ENV PATH=/install/bin:$PATH \
     FLASK_APP=wsgi \
-    APP_CONFIG=development
+    FLASK_RUN_HOST=0.0.0.0
+
 
 WORKDIR /app
 
@@ -40,7 +39,8 @@ CMD ["flask", "run", "--host=0.0.0.0"]
 # ---- prod: production image ----
 FROM python:3.11-slim AS prod
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages" \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
@@ -53,6 +53,12 @@ COPY --from=builder /install /usr/local
 COPY app/ ./app/
 COPY wsgi.py .
 COPY config.py .
+COPY migrations/ ./migrations/
+
+# Entrypoint script to run migrations and start the app
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Add non-root user
 RUN useradd -u 1000 --create-home appuser \
@@ -60,4 +66,6 @@ RUN useradd -u 1000 --create-home appuser \
 USER appuser
 
 EXPOSE 8000
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--workers", "3", "--threads", "2"]
+
+ENV GUNICORN_WORKERS=3
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--workers", "${GUNICORN_WORKERS}", "--threads", "2"]

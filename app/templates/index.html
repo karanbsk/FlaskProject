@@ -1,42 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask Blueprint App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            color: #333;
-            text-align: center;
-            padding: 50px;
-        }
-        h1 {
-            color: #007bff;
-        }
-        .container {
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: inline-block;
-            margin-top: 50px;
-        }
-        .footer {
-            margin-top: 20px;
-            color: #666;
-            font-size: 14px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Welcome to the Flask App!</h1>
+{% extends "base.html" %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <!-- Inner box for heading and paragraph -->
+    <div class="text-center p-5 bg-white rounded shadow">
+        <h1 class="text-primary">Welcome to the Flask App!</h1>
         <p>Your Blueprint + Application Factory setup is working perfectly.</p>
     </div>
-    <div class="footer">
-        Powered by Flask {% if env_name == "Development" %}- This is a Dev Page{% endif %}
-    </div>
-</body>
-</html>
+</div>
+{% endblock %}
