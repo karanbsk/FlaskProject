@@ -1,16 +1,131 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<h2>App Dashboard</h2>
-<ul class="list-group">
-<li class="list-group-item">
-    <strong>Database Status:</strong>
-    <span class="db-status {{ 'up' if db_status == 'Up' else 'down' }}">
-        {{ db_status }}
-    </span>
-</li>
-    <li class="list-group-item"><strong>Server Time:</strong> {{ server_time }}</li>
-    <li class="list-group-item"><strong>Hostname:</strong> {{ hostname }}</li>
-    <li class="list-group-item"><strong>Environment:</strong> {{ env_name }}</li>
-</ul>
+<h2 class="mb-4">Health Check Dashboard</h2>
+<p class="text-muted">Auto Refresh: 30s</p>
+<button class="btn btn-primary mb-3" onclick="refreshDashboard()">Refresh Now</button>
+
+<div class="row">
+  <!-- App Health -->
+  <div class="col-md-4 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <h5 class="card-title">App Health</h5>
+        <p id="app-health"><span class="badge bg-secondary">Loading...</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Database Health -->
+  <div class="col-md-4 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <h5 class="card-title">Database</h5>
+        <div id="db-status"><span class="badge bg-secondary">Loading...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container Details -->
+  <div class="col-md-4 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <h5 class="card-title">Container</h5>
+        <p>ID: <span id="container-id">-</span></p>
+        <p>Image: <span id="container-image">-</span></p>
+        <p>Uptime: <span id="container-uptime">-</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- System Usage -->
+  <div class="col-md-6 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <h5 class="card-title">System Usage</h5>
+        <p>CPU: <span id="cpu-usage">-</span></p>
+        <p>Memory: <span id="memory-usage">-</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Health -->
+  <div class="col-md-6 mb-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">API Health</h5>
+        <ul class="list-group" id="api-health">
+          <li class="list-group-item">Loading...</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Server + Env Info -->
+<div class="row mt-3">
+  <div class="col-md-12">
+    <div class="card shadow-sm">
+      <div class="card-body text-center">
+        <p><strong>Server Time:</strong> <span id="server-time">-</span></p>
+        <p><strong>Hostname:</strong> <span id="hostname">-</span></p>
+        <p><strong>Environment:</strong> <span id="env-name">-</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function refreshDashboard() {
+    try {
+        const res = await fetch("{{ url_for('main.dashboard_data') }}");
+        const data = await res.json();
+
+        // App
+        document.getElementById("app-health").innerHTML =
+            `<span class="badge bg-${data.app_health === 'Healthy' ? 'success' : 'danger'}">${data.app_health}</span>`;
+
+        // DB
+        document.getElementById("db-status").innerHTML =
+            data.db_status.status === "Up"
+            ? `<span class="badge bg-success">Up</span><br>Latency: ${data.db_status.latency} ms<br>Rows: ${data.db_status.rows}`
+            : `<span class="badge bg-danger">Down</span>`;
+
+        // Container
+        document.getElementById("container-id").innerText = data.container_info.id;
+        document.getElementById("container-image").innerText = data.container_info.image;
+        document.getElementById("container-uptime").innerText = data.container_info.uptime;
+
+        // System usage
+        document.getElementById("cpu-usage").innerText = data.system_usage.cpu + "%";
+        document.getElementById("memory-usage").innerText = data.system_usage.memory + "%";
+
+        // API Health
+        const apiList = document.getElementById("api-health");
+        apiList.innerHTML = "";
+        for (const [ep, status] of Object.entries(data.api_health)) {
+            apiList.innerHTML += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                ${ep}
+                <span class="badge bg-${status === 'Healthy' ? 'success' : 'danger'}">${status}</span>
+            </li>`;
+        }
+
+        // Server/Env
+        document.getElementById("server-time").innerText = data.server_time;
+        document.getElementById("hostname").innerText = data.hostname;
+        document.getElementById("env-name").innerText = data.env_name;
+
+    } catch (err) {
+        console.error("Failed to refresh dashboard:", err);
+    }
+}
+
+// Auto refresh every 30s
+setInterval(refreshDashboard, 30000);
+
+// Initial load
+refreshDashboard();
+</script>
 {% endblock %}
