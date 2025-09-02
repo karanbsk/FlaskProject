@@ -1,75 +1,66 @@
-# Flask Project
+# Flask DevOps Portfolio
 
-A simple Flask web application with a modular structure for scalability and maintainability.
-
----
-
-## 🚀 Features
-- Organized Flask app structure
-- Templates and static files inside the `app` package
-- Ready for future scaling with Blueprints
+A containerized Flask web application with PostgreSQL, Docker Compose, and Flask-Migrate — built as part of a DevOps learning and portfolio project.
 
 ---
 
-## 📂 Project Structure
+## 🚀 Quick Start
 
-```
-FlaskProject/
-│
-├── app/
-│   ├── __init__.py      # Initialize Flask app
-│   ├── routes.py        # Application routes
-│   ├── templates/       # HTML templates
-│   └── static/          # CSS, JS, Images
-│
-├── app.py               # Entry point
-├── requirements.txt     # Dependencies
-├── .gitignore           # Ignored files
-└── README.md            # Documentation
-```
----
-
-## 🛠️ Setup & Installation
-
-### 1. Clone the Repository
+### 1. Clone the repository
 ```bash
 git clone <your-repo-url>
 cd FlaskProject
 ```
 
-### 2. Create a Virtual Environment
+### 2. Setup environment
+Copy example file:
 ```bash
-python -m venv venv
-source venv/bin/activate    # Linux / macOS
-venv\Scripts\activate       # Windows
+cp .env.example .env
 ```
 
-### 3. Install Dependencies
+### 3. Run with Docker Compose
 ```bash
-pip install -r requirements.txt
+make containers-up
 ```
+
+### 4. Access the app
+Open [http://localhost:5000](http://localhost:5000)
 
 ---
 
-## ▶️ Run the Application
-```bash
-flask run
-```
-By default, the app will run on `http://127.0.0.1:5000/`.
+## 🛠️ Common Commands
+
+- Start containers:  
+  ```bash
+  make containers-up
+  ```
+
+- Stop containers:  
+  ```bash
+  make containers-down
+  ```
+
+- Run DB migrations:  
+  ```bash
+  make db-migrate-up
+  ```
+
+- Open Postgres shell:  
+  ```bash
+  make db-shell
+  ```
 
 ---
 
-## ✅ Future Enhancements
-- Add Blueprints for modular routes
-- Implement Jinja2 templates with dynamic data
-- Add database integration (SQLite, PostgreSQL)
-- Implement authentication system
-- Dockerize the application
+## 📄 Documentation
+
+- 📌 [Project Snapshot](https://github.com/karanbsk/FlaskProject/blob/main/PROJECT_SNAPSHOT.md) — structure & workflow summary  
+- 📖 [Project Documentation](https://github.com/karanbsk/FlaskProject/blob/main/docs/project_documentation.md) — detailed explanations, enhancements, future plans  
 
 ---
 
 ## 🤝 Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome! For significant changes, please open an issue first.
 
 ---
 

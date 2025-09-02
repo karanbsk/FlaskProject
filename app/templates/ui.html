@@ -21,10 +21,12 @@
             <td>
                 <!-- Edit Button -->
                 <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">Edit</button>
+                {% if not user.is_root %}
                 <!-- Delete Button -->
                 <form action="{{ url_for('main.delete_user_ui', user_id=user.id) }}" method="POST" style="display:inline;">
-                    <button class="btn btn-sm btn-danger" type="submit">Delete</button>
-                    </form>
+                  <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+                </form>
+                {% endif %}
             </td>
         </tr>
 
@@ -41,7 +43,11 @@
                 <div class="modal-body">
                   <div class="mb-3">
                     <label>Username</label>
-                    <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
+                    <input type="text" class="form-control" name="username" value="{{ user.username }}" disabled>
+                  </div>
+                  <div class="mb-3">
+                    <label>New Password (leave blank to keep current)</label>
+                    <input type="password" class="form-control" name="password">
                   </div>
                   <div class="mb-3">
                     <label>Email</label>
