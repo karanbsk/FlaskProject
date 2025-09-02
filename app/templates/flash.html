@@ -1,0 +1,28 @@
+{# templates/_flash.html #}
+<div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x p-3"
+     style="z-index: 1050; width: 100%; max-width: 500px;">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow text-center" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+</div>
+
+<script>
+  // Auto-hide flash messages with fade effect
+  setTimeout(() => {
+    const alerts = document.querySelectorAll('#flash-container .alert');
+    alerts.forEach(alert => {
+      alert.classList.add('fade-out');
+      setTimeout(() => {
+        let bsAlert = new bootstrap.Alert(alert);
+        bsAlert.close();
+      }, 1000); // match CSS transition duration
+    });
+  }, 4000);
+</script>

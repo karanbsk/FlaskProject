@@ -58,6 +58,7 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db) 
     
+  
     #Import models, routes, blueprints
     from app.blueprints.main import main
     from app.routes import user_bp
