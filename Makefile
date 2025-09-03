@@ -1,7 +1,7 @@
 # Variables
 COMPOSE = docker-compose -f docker-compose.dev_db.yml
 FLASK_APP = flask_web
-DB_SERVICE = flask_db
+DB_SERVICE = db
 DB_USER = flask_user
 DB_NAME = flask_db
 
