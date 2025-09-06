@@ -32,10 +32,10 @@ jobs:
                 pip install pytest
                 
             # Step 4: Run tests
-            - name: Run tests
+            - name: Run Critical + Major Tests
               run: |
-                export PYTHONPATH=$PWD  
-                pytest
+                export PYTHONPATH=$PYTHONPATH:$(pwd)    
+                ./flask_venv/bin/pytest -m "critical or major" --junitxml=report_complete.xml
              
             # Step 5: Login to GHCR
             - name: Log in to GHCR

@@ -10,7 +10,7 @@ class User(db.Model):
     __tablename__ = 'users'
       
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(100), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     is_root = db.Column(db.Boolean, default=False, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
@@ -18,37 +18,41 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     force_password_change = db.Column(db.Boolean, default=False, nullable=False)
     
-    def set_password(self, password):
-        #  Validation before hashing
-        if not self.validate_password(password):
+    # ---- password handling ----
+    @property
+    def password(self):
+        # make it write-only to avoid accidental read/leak
+        raise AttributeError("Password is write-only.")
+    
+    @password.setter
+    def password(self, raw_password: str):
+        self.set_password(raw_password)
+    
+    def set_password(self, raw_password: str):
+        if not self.validate_password(raw_password):
             raise ValueError(
-                "Password must be at least 8 characters long, contain one uppercase, one lowercase, one digit, and one special character."
+                "Password must be at least 8 characters long, contain one uppercase, "
+                "one lowercase, one digit, and one special character."
             )
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(raw_password)
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+    def check_password(self, raw_password: str) -> bool:
+        return check_password_hash(self.password_hash, raw_password)
 
     @staticmethod
     def validate_password(password):
         """Validates password against policy"""
-        if len(password) < 8:
-            return False
-        if not re.search(r"[A-Z]", password):
-            return False
-        if not re.search(r"[a-z]", password):
-            return False
-        if not re.search(r"[0-9]", password):
-            return False
-        if not re.search(r"[@$!%*?&#]", password):
-            return False
+        if len(password) < 8: return False
+        
+        if not re.search(r"[A-Z]", password): return False
+        
+        if not re.search(r"[a-z]", password): return False
+        
+        if not re.search(r"[0-9]", password): return False
+        
+        if not re.search(r"[@$!%*?&#]", password): return False
+        
         return True
-    
-    def __init__(self, username, email, password, is_root=False):
-        self.username = username
-        self.email = email.lower()
-        self.is_root = is_root
-        self.set_password(password)
 
    
     def to_dict(self):
@@ -56,6 +60,7 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            "is_root": bool(self.is_root),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }    

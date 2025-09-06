@@ -13,3 +13,6 @@ coverage
 
 # Database migration
 Flask-Migrate
+
+# Timezone support
+tzdata

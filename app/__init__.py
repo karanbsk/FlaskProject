@@ -13,7 +13,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 
-def create_app():
+def create_app(config=None):
     
     config_class = get_config()
     
@@ -59,12 +59,12 @@ def create_app():
     migrate.init_app(app, db) 
     
   
-    #Import models, routes, blueprints
-    from app.blueprints.main import main
-    from app.routes import user_bp
+    # Register Blueprints
+    from app.blueprints.main import main as main_bp
+    app.register_blueprint(main_bp)
     
-    #Blueprints
-    app.register_blueprint(main)
+    # User management routes
+    from app.routes import user_bp
     app.register_blueprint(user_bp)
     
     @app.context_processor

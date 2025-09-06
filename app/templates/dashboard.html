@@ -20,7 +20,12 @@
   <div class="col-md-4 mb-3">
     <div class="card shadow-sm">
       <div class="card-body text-center">
-        <h5 class="card-title">Database</h5>
+        <h5 class="card-title">Database Status</h5>
+        {% if db_status and db_status.status == "Down" %}
+          <p class="db-error">Database Error</p>
+        {% else %}
+            <p>Status: {{ db_status.status if db_status else 'Unknown' }}</p>
+        {% endif %}
         <div id="db-status"><span class="badge bg-secondary">Loading...</span></div>
       </div>
     </div>
@@ -56,6 +61,7 @@
     <div class="card shadow-sm">
       <div class="card-body">
         <h5 class="card-title">API Health</h5>
+        <p>{{ app_health }}</p>
         <ul class="list-group" id="api-health">
           <li class="list-group-item">Loading...</li>
         </ul>
@@ -69,9 +75,9 @@
   <div class="col-md-12">
     <div class="card shadow-sm">
       <div class="card-body text-center">
-        <p><strong>Server Time:</strong> <span id="server-time">-</span></p>
-        <p><strong>Hostname:</strong> <span id="hostname">-</span></p>
-        <p><strong>Environment:</strong> <span id="env-name">-</span></p>
+        <p><strong>Server Time : </strong> <span id="server-time">-</span></p>
+        <p><strong>Hostname : </strong> <span id="hostname">-</span></p>
+        <p><strong>Environment : </strong> <span id="env-name">-</span></p>
       </div>
     </div>
   </div>

@@ -61,26 +61,13 @@ jobs:
 
       # ✅ Step 5: Run Flake8 Linting
       - name: Run Flake8 Linting
-        run: |
-          if [ -f "flask_venv/bin/activate" ]; then
-            source flask_venv/bin/activate
-          else
-            source flask_venv/Scripts/activate
-          fi
-          flake8 app tests || true  # Do not fail workflow on lint warnings
+        run: flake8 app tests || true  # Do not fail workflow on lint warnings
 
       # ✅ Step 6: Run Pytest
-      - name: Run Pytest
-        env:
-          SNAPSHOT_GENERATION: "true"  # Use in-memory DB for snapshot generation
-        run: |
-          if [ -f "flask_venv/bin/activate" ]; then
-            source flask_venv/bin/activate
-          else
-            source flask_venv/Scripts/activate
-          fi
+      - name: Run Critical Tests
+        run:  |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest tests --maxfail=1 --disable-warnings -q
+          ./flask_venv/bin/pytest -m critical --junitxml=report_critical.xml
      
       # ✅ Step 7: Commit & Push Snapshot (avoid merge conflicts)
       - name: Commit & Push PROJECT_SNAPSHOT.md

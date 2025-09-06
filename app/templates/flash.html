@@ -1,16 +1,19 @@
 {# templates/_flash.html #}
-<div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x p-3"
-     style="z-index: 1050; width: 100%; max-width: 500px;">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show shadow text-center" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
+<div id="flashes">   {# <-- stable wrapper for tests #}
+  <div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x p-3"
+       style="z-index: 1050; width: 100%; max-width: 500px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show shadow text-center"
+               role="alert" data-flash-category="{{ category }}">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
 </div>
 
 <script>
