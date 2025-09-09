@@ -44,11 +44,12 @@ class User(db.Model):
             return False
         return True
     
-    def __init__(self, username, email, password, is_root=False):
+    def __init__(self, username, email, password=None, is_root=False):
         self.username = username
         self.email = email.lower()
         self.is_root = is_root
-        self.set_password(password)
+        if password:  # only set if provided
+            self.set_password(password)
 
    
     def to_dict(self):
