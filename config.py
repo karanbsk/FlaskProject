@@ -15,11 +15,11 @@ SECRET_KEY = os.getenv("SECRET_KEY") or (
 
 # Helper function to build Postgres URI        
 def build_postgres_uri():
-    user = os.getenv("POSTGRES_USER", "fallback_user")
-    password = os.getenv("POSTGRES_PASSWORD", "fallback_password")
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
-    db_name = os.getenv("POSTGRES_DB", "fallback_db")
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = os.getenv("POSTGRES_HOST")
+    port = os.getenv("POSTGRES_PORT")
+    db_name = os.getenv("POSTGRES_DB")
     if all([user, password, host, port, db_name]):
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
     return None
@@ -33,7 +33,10 @@ def mask_db_uri(uri: str) -> str:
         user = p.username or ""
         host = p.hostname or ""
         port = f":{p.port}" if p.port else ""
-        netloc = f"{user}:***@{host}:{port}" if user else f"{host}:{port}"
+        if user:
+            netloc = f"{user}:***@{host}{port}"
+        else:
+            netloc = f"{host}{port}"
         return urlunparse((p.scheme, netloc, p.path, '', '', ''))
     except Exception:
         return uri[:20] + "...(masked)"
@@ -117,7 +120,7 @@ def get_config():
     print(f" Loading configuration: {env}") 
     config_class = CONFIG_MAP.get(env, DevelopmentConfig)
     #Only validate production config here, not at import time
-    if env == ProductionConfig:
+    if config_class is ProductionConfig:
         config_class.init_db_uri()  # Ensure DB URI is set for Production
     return config_class    
 

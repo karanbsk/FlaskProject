@@ -18,16 +18,33 @@ SUSPICIOUS_USERNAME_RE = re.compile(r"(?:'|--|;|\bOR\b|\bAND\b|\bUNION\b|\bSELEC
 @user_bp.route("", methods=['GET'])
 def list_users_api():
     users = users_service.list_users()
-    return jsonify([[u.to_dict() for u in users]]), 200
+    return jsonify([u.to_dict() for u in users]), 200
 
 # CREATE user
 @user_bp.route("", methods=['POST'])
 def create_user_api():
-    form = request.form
-    username = (form.get('username') or '').strip()
+    # Accept either JSON or form data
+    json_data = request.get_json(silent=True)
+    is_json = json_data is not None
+
+    if is_json:
+        data = json_data
+        username = (data.get('username') or '').strip()
+        email = (data.get('email') or '').strip()
+        password = data.get('password') or ''
+        confirm = data.get('confirm_password') or ''
+    else:
+        form = request.form
+        username = (form.get('username') or '').strip()
+        email = (form.get('email') or '').strip()
+        password = form.get('password') or ''
+        confirm = form.get('confirm_password') or ''
+        
+    # early suspicious username check (keeps UI behaviour)
     if username and SUSPICIOUS_USERNAME_RE.search(username):
-        # return 422 + render page with inline message so tests and UI see an error
-        form_data = {'username': username, 'email': form.get('email', '')}
+        if is_json:
+            return jsonify({"errors": ["Invalid username."]}), 422
+        form_data = {'username': username, 'email': email or ''}
         return render_template(
             'ui.html',
             users=User.query.order_by(User.created_at.desc()).all(),
@@ -35,10 +52,8 @@ def create_user_api():
             error_message="Invalid username.",
             open_modal='create'
         ), 422
-    email = (form.get('email') or '').strip()
-    password = form.get('password') or ''
-    confirm = form.get('confirm_password') or ''
 
+    # validations
     errors = []
     if not username:
         errors.append("Username is required.")
@@ -53,6 +68,8 @@ def create_user_api():
         errors.append("Passwords do not match.")
 
     if errors:
+        if is_json:
+            return jsonify({"errors": errors}), 422
         form_data = {'username': username, 'email': email}
         return render_template(
             'ui.html',
@@ -62,24 +79,40 @@ def create_user_api():
             open_modal='create'
         ), 422
 
+    # create user
     try:
-        pw_hash = generate_password_hash(password)
-        user = User(username=username, email=email, password_hash=pw_hash)
+        user = User(username=username, email=email)
+        user.password = password  # model will validate and hash
         db.session.add(user)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
+        msg = 'User with that username or email already exists.'
+        if is_json:
+            return jsonify({"errors": [msg]}), 422
         form_data = {'username': username, 'email': email}
         return render_template(
             'ui.html',
             users=User.query.order_by(User.created_at.desc()).all(),
             form_data=form_data,
-            error_message='User with that username or email already exists.',
+            error_message=msg,
             open_modal='create'
         ), 422
 
+    # Success response
+    if is_json:
+        return jsonify({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "message": "User created successfully."
+        }), 201
+    if request.path.startswith("/api/") or request.is_json:
+        return jsonify({"id": user.id, "username": user.username}), 201, {"Location": f"/api/users/{user.id}"}
+
     flash('User created successfully.', 'success')
-    return redirect(url_for('main.users_list'))
+    return redirect("/api/users")
+
 
 
 # RESET password

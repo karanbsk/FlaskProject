@@ -1,26 +1,27 @@
+version: "3.9"
+
 services:
+
   postgres:
     image: postgres:15
-    container_name: db-test
-    env_file: 
-      - .env.test
-    ports: ["5433:5432"]
-    volumes:
-      - pgtestdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 0.0.0.0"]
-      interval: 2s
-      timeout: 5s
-      retries: 10
+    env_file: .env.test
+    ports: 
+      - "5433:5432"
+    #volumes:
+    #  - pgtestdata:/var/lib/postgresql/data
+    #healthcheck:
+    #   test: ["CMD-SHELL", "psql \"$${DATABASE_URL}\" -c '\\q' >/dev/null 2>&1 || exit 1"]
+    #   interval: 2s
+    #   timeout: 2s
+    #   retries: 15
+    #   start_period: 5s
 
   app:
     
     build:
       context: .
       dockerfile: Dockerfile.test
-    container_name: app-test
-    env_file:
-      - .env.test
+    env_file: .env.test
     environment:
       - TESTING=1
       - PYTHONPATH=/app
@@ -29,7 +30,6 @@ services:
     working_dir: /app
     volumes:
       - ./:/app:cached
-    command: ["./ci/run-tests.sh"]   # run-tests.sh should wait for DB then run tests
-
+    # command: ["./ci/run-tests.sh"]   # run-tests.sh should wait for DB then run tests
 volumes:
   pgtestdata:

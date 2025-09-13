@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flaskproject"
+version = "0.1.0"
+description = "Flask DevOps Portfolio project"
+authors = [
+    { name = "Karan", email = "karanbsk@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+    "flask",
+    "sqlalchemy",
+    "werkzeug",
+    "psycopg2-binary",
+    "pytest",
+]
+
+[tool.setuptools]
+packages = ["app"]
+py-modules = ["config"]

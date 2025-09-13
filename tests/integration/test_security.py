@@ -1,9 +1,11 @@
-# tests/postgres/test_security.py
+# tests/integration/test_security.py
 import pytest
 from app.models import User
 from app import db as _db
 
-@pytest.mark.pg
+pytestmark = pytest.mark.integration
+
+@pytest.mark.integration
 def test_sql_injection_attempt(pg_client, pg_app):
     payload = {
         "username": "inject' OR 1=1 --",
@@ -18,7 +20,7 @@ def test_sql_injection_attempt(pg_client, pg_app):
     with pg_app.app_context():
         assert User.query.filter_by(email="inject@example.com").first() is None
 
-@pytest.mark.pg
+@pytest.mark.integration
 def test_no_password_leak_in_api(pg_client, pg_app):
     payload = {
         "username": "secureuserpg",

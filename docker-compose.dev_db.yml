@@ -7,8 +7,7 @@ services:
       target: dev   # Use dev stage in Dockerfile
     container_name: flask_web
     command: flask run --host=0.0.0.0 --reload --extra-files /app/templates
-    env_file:
-      - .env
+    env_file: .env.dev
     ports:
       - "5000:5000"
     depends_on:
@@ -24,8 +23,7 @@ services:
     image: postgres:15
     container_name: flask_db
     restart: unless-stopped
-    env_file:
-      - .env.dev
+    env_file: .env.dev
     ports:
       - "5432:5432"
     volumes:

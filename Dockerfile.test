@@ -9,6 +9,7 @@ WORKDIR /app
 
 # system deps for psycopg2; adjust as needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
     gcc libpq-dev build-essential \
   && rm -rf /var/lib/apt/lists/*
 

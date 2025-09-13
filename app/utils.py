@@ -1,4 +1,5 @@
 import re
+import secrets
 
 def validate_password(password: str, confirm_password: str):
     """
@@ -27,3 +28,13 @@ def validate_password(password: str, confirm_password: str):
         return False, "Password must contain at least one special character."
 
     return True, "Password is valid."
+
+
+
+_email_re = re.compile(r"^[^@]+@[^@]+\.[^@]+$")
+
+def is_valid_email(email: str) -> bool:
+    return bool(email and _email_re.match(email))
+
+def generate_token(username: str) -> str:
+    return secrets.token_urlsafe(16)

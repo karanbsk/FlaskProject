@@ -1,3 +1,7 @@
+import pytest
+
+pytestmark = pytest.mark.functional
+
 def test_index(client):
     response = client.get('/')
     
