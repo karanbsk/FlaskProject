@@ -6,6 +6,8 @@ import re
 from app import db
 from app.models import User
 from werkzeug.security import generate_password_hash
+from app.utils import validate_password
+from flask import current_app
 
 
 user_bp = Blueprint('user_bp', __name__, url_prefix='/api/users')
@@ -39,11 +41,11 @@ def create_user_api():
         email = (form.get('email') or '').strip()
         password = form.get('password') or ''
         confirm = form.get('confirm_password') or ''
-        
+
     # early suspicious username check (keeps UI behaviour)
     if username and SUSPICIOUS_USERNAME_RE.search(username):
         if is_json:
-            return jsonify({"errors": ["Invalid username."]}), 422
+            return jsonify({"message": "Invalid username.", "errors": ["Invalid username."]}), 422
         form_data = {'username': username, 'email': email or ''}
         return render_template(
             'ui.html',
@@ -69,7 +71,7 @@ def create_user_api():
 
     if errors:
         if is_json:
-            return jsonify({"errors": errors}), 422
+            return jsonify({"message": "Validation failed", "errors": errors}), 422
         form_data = {'username': username, 'email': email}
         return render_template(
             'ui.html',
@@ -79,17 +81,34 @@ def create_user_api():
             open_modal='create'
         ), 422
 
-    # create user
+    # create user (handle model-level validation cleanly)
     try:
         user = User(username=username, email=email)
-        user.password = password  # model will validate and hash
+        try:
+            # model may raise ValueError or other exception types for policy violations
+            user.password = password
+        except Exception as ve:
+            # Treat model validation errors as 422 (Unprocessable Entity)
+            db.session.rollback()
+            msg = str(ve) if ve is not None else "Password validation failed"
+            if is_json:
+                return jsonify({"message": "Password validation failed", "errors": {"password": msg}}), 422
+            form_data = {'username': username, 'email': email}
+            return render_template(
+                'ui.html',
+                users=User.query.order_by(User.created_at.desc()).all(),
+                form_data=form_data,
+                error_message=msg,
+                open_modal='create'
+            ), 422
+
         db.session.add(user)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         msg = 'User with that username or email already exists.'
         if is_json:
-            return jsonify({"errors": [msg]}), 422
+            return jsonify({"message": msg, "errors": [msg]}), 422
         form_data = {'username': username, 'email': email}
         return render_template(
             'ui.html',
@@ -98,6 +117,21 @@ def create_user_api():
             error_message=msg,
             open_modal='create'
         ), 422
+    except Exception as exc:
+        # Unexpected error: log and return 500 for API clients
+        db.session.rollback()
+        current_app.logger.exception("Unexpected error creating user")
+        if is_json:
+            return jsonify({"message": "Internal error creating user"}), 500
+        # HTML fallback: show a friendly message and return to UI
+        form_data = {'username': username, 'email': email}
+        return render_template(
+            'ui.html',
+            users=User.query.order_by(User.created_at.desc()).all(),
+            form_data=form_data,
+            error_message="Unexpected error creating user",
+            open_modal='create'
+        ), 500
 
     # Success response
     if is_json:
@@ -107,35 +141,53 @@ def create_user_api():
             "email": user.email,
             "message": "User created successfully."
         }), 201
-    if request.path.startswith("/api/") or request.is_json:
-        return jsonify({"id": user.id, "username": user.username}), 201, {"Location": f"/api/users/{user.id}"}
 
+    # HTML flow (server-rendered): flash and redirect to UI page
     flash('User created successfully.', 'success')
-    return redirect("/api/users")
+    return redirect(url_for('main.ui'))
 
 
 
 # RESET password
-@user_bp.route("/reset_password", methods=["POST"])
-def reset_password_api():
-    data = request.get_json() or {}
+@user_bp.route("/<int:user_id>/reset_password", methods=["POST"])
+def reset_password_api(user_id):
+    data = request.get_json(silent=True) or request.form.to_dict()
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+
+    # Validate
+    is_valid, msg = validate_password(new_password, confirm_password)
+    if not is_valid:
+        return jsonify({"message": "Password validation failed", "errors": {"new_password": msg}}), 422
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"message": "User not found", "errors": {"user_id": "No user for given id"}}), 404
+
     try:
-        users_service.reset_password(data.get("username"), data.get("new_password"))
+        user.set_password(new_password)
+        db.session.add(user)
+        db.session.commit()
         return jsonify({"message": "Password reset successful"}), 200
-    except users_service.UserNotFound as e:
-        return jsonify({"error": str(e)}), 404
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({"message": str(ve)}), 422
+    except Exception as e:
+        current_app.logger.exception("Error resetting password")
+        db.session.rollback()
+        return jsonify({"message": "Internal error", "errors": {"exception": str(e)}}), 500
 
 # Option A: delete by username via POST JSON (simple for tests)
-@user_bp.route("/delete", methods=["POST"])
-def delete_user_api():
-    data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
-    if not username:
-        return jsonify({"error": "username is required"}), 400
+@user_bp.route("/<int:user_id>", methods=["DELETE", "POST"])
+def delete_user_api(user_id):
+    user = User.query.get(user_id)
+    if not user: return jsonify({"message":"User Not found"}), 404
+    if user.is_root: return jsonify({"message":"Cannot delete root"}), 400
     try:
-        users_service.delete_user(username)
+        db.session.delete(user)
+        db.session.commit()
         return jsonify({"message": "User deleted successfully"}), 200
-    except users_service.UserNotFound as e:
-        return jsonify({"error": str(e)}), 404
-    except users_service.RootDeletionError as e:
-        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Error deleting User", "errors": {"exception": str(e)}}), 500
+    

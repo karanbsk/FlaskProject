@@ -31,8 +31,29 @@ except Exception:
 config = context.config
 
 # Interpret the config file for Python logging.
-fileConfig(config.config_file_name)
-logger = logging.getLogger('alembic.env')
+# fileConfig(config.config_file_name)
+# logger = logging.getLogger('alembic.env')
+
+cfg_name = config.config_file_name or 'alembic.ini'
+project_root_cfg = os.path.join(str(PROJECT_ROOT), 'alembic.ini')
+migrations_cfg = os.path.join(os.path.dirname(__file__), cfg_name)
+
+if os.path.exists(project_root_cfg):
+    # Prefer alembic.ini in project root (one level above migrations/)
+    fileConfig(project_root_cfg)
+    config.config_file_name = project_root_cfg
+elif os.path.exists(migrations_cfg):
+    # fallback: migrations/alembic.ini (only used if root file missing)
+    fileConfig(migrations_cfg)
+    config.config_file_name = migrations_cfg
+else:
+    # Don't raise here; use basic logging so alembic can continue and give clearer errors later.
+    logging.basicConfig()
+    logging.getLogger().warning(
+        "alembic.ini not found at %s or %s. Using basic logging. "
+        "Place alembic.ini in project root or set ALEMBIC_DB_URL/DATABASE_URL.",
+        project_root_cfg, migrations_cfg
+    )
 
 
 def get_engine():
@@ -76,8 +97,8 @@ def get_engine_url():
 alembic_db_url = os.environ.get("ALEMBIC_DB_URL") or os.environ.get("DATABASE_URL")
 if alembic_db_url:
     config.set_main_option("sqlalchemy.url", alembic_db_url)
-if not config.get_main_option("sqlalchemy.url"):
-    config.set_main_option("sqlalchemy.url", get_engine_url())
+#if not config.get_main_option("sqlalchemy.url"):
+#    config.set_main_option("sqlalchemy.url", get_engine_url())
     
 # Ensure the Flask app is created so current_app is available when alembic runs
 def ensure_flask_app():
@@ -142,7 +163,7 @@ def run_migrations_online():
             script = directives[0]
             if script.upgrade_ops.is_empty():
                 directives[:] = []
-                logger.info('No changes in schema detected.')
+                logging.logger.info('No changes in schema detected.')
 
     conf_args = {}
     conf_args["process_revision_directives"] = process_revision_directives

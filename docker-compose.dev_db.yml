@@ -1,13 +1,16 @@
 version: "3.9"
 
 services:
-  web:
+  app:
     build:
       context: .
       target: dev   # Use dev stage in Dockerfile
-    container_name: flask_web
-    command: flask run --host=0.0.0.0 --reload --extra-files /app/templates
+    container_name: flask_app
+    entrypoint: ["/app/entrypoint.sh"]                    #["/bin/sh", "-c", "/app/entrypoint.sh"]
     env_file: .env.dev
+    environment:
+      #- APP_ENV=development
+      - MIGRATE_ON_STARTUP=true
     ports:
       - "5000:5000"
     depends_on:

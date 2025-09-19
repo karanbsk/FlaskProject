@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc libpq-dev build-essential \
   && rm -rf /var/lib/apt/lists/*
 
+RUN groupadd -g 1001 testgroup \
+    && useradd -m -u 1000 -g testgroup testuser
+
 COPY requirements.txt /app/requirements.txt
 COPY requirements-dev.txt /app/requirements-dev.txt
 RUN pip install --upgrade pip setuptools wheel
@@ -24,6 +27,9 @@ COPY . /app
 # Make CI script executable (if present)
 RUN [ -f /app/ci/run-tests.sh ] && chmod +x /app/ci/run-tests.sh || true
 
+RUN chown -R testuser:testgroup /app
+
+USER testuser
 # default working directory already set
 # default command can be overridden by docker-compose
 CMD ["./ci/run-tests.sh"]

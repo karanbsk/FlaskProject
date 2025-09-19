@@ -16,7 +16,7 @@ def test_create_user_route_success(pg_client):
         "password":"StrongPass1!",
         "confirm_password":"StrongPass1!"
         }
-    rv = pg_client.post("/api/users", data=payload)
+    rv = pg_client.post("/api/users", json=payload)
     assert rv.status_code in (200,201)
     if rv.status_code in (200, 201):
         # on success, expect json payload with username or Location header

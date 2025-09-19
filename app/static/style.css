@@ -24,3 +24,52 @@ h1 { margin-bottom: .5rem; }
   max-width: 400px;   /* small width for floating box */
 }
 /* Smooth fade-out animation */
+/* ensure flash root does not block clicks for underlying modals except for flash itself */
+.app-flash-root { pointer-events: none; }
+
+/* the actual alert container must accept pointer events */
+.app-flash-root .app-flash-item {
+  pointer-events: auto;
+  margin: 8px auto;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  width: auto;
+  max-width: 95%;
+  transition: transform 250ms ease, opacity 250ms ease;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* fade-out effect if you want to manually add `fade-out` class from JS */
+.app-flash-root .app-flash-item.fade-out {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+/* Sticky footer using flex layout (recommended) */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* ensures footer at bottom for short pages */
+}
+
+/* allow main content to grow and push footer down when needed */
+main.container {
+  flex: 1 0 auto; /* grow to fill available space */
+  /* optional: add bottom padding so content isn't crowded by small footers */
+  padding-bottom: 1rem;
+}
+
+/* footer styling — keep your existing look, just add stable placement */
+footer.site-footer {
+  /* no position:fixed needed; flex layout keeps it at bottom */
+  background: #f8f9fA; /* keep existing bg-light look */
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(0,0,0,0.04);
+  font-size: 0.9rem;
+}

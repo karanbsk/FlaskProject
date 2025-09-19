@@ -51,7 +51,7 @@ def upgrade():
                 """
             ), {
                 "username": "root", 
-                "email": "root@example.com",
+                "email": "root@flaskapp.com",
                 "is_root": True, 
                 "force_password_change": True,
                 "pw": pw_hash

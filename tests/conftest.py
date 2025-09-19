@@ -178,7 +178,7 @@ def pg_app(pg_url, pg_engine):
     
     # --- Prepare to run alembic (explicit config path + env) ---
     project_root = Path(__file__).resolve().parent.parent
-    alembic_ini = project_root / "migrations" / "alembic.ini"
+    alembic_ini = project_root / "alembic.ini"
     alembic_cmd = ["alembic", "-c", str(alembic_ini), "upgrade", "head"]
 
     proc_env = os.environ.copy()

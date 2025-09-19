@@ -6,7 +6,7 @@ set -euo pipefail
 #  TEARDOWN=yes ./ci/recreate_and_test.sh   # remove stack & volumes at end
 #
 COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.test.yml}
-ALEMBIC_CFG_PATH=${ALEMBIC_CFG_PATH:-./migrations/alembic.ini}
+ALEMBIC_CFG_PATH=${ALEMBIC_CFG_PATH:-./alembic.ini}
 DATABASE_URL=${DATABASE_URL:-}
 INIT_ROOT_PW=${INIT_ROOT_PW:-'ChangeMeNow!'}
 # If TEARDOWN=yes, the script will bring the stack down and remove volumes at the end.
