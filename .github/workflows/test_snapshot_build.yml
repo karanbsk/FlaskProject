@@ -19,7 +19,8 @@ jobs:
   test:
     name: Test (pytest)
     runs-on: ubuntu-latest
-
+    env:
+      APP_CONFIG: "testing"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
