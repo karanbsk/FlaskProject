@@ -57,6 +57,7 @@ def _build_pg_url():
 @pytest.fixture(scope="session")
 def pg_url():
     url = _build_pg_url()
+    print(f"pg_url:{url}")
     if not url:
         raise RuntimeError("No Postgres URL available (set DATABASE_URL or TEST_DATABASE_URL or POSTGRES_* env vars)")
     return url
