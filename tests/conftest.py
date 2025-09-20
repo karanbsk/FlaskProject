@@ -1,7 +1,6 @@
 # tests/conftest.py
 import os
 import subprocess
-import pytest
 from pathlib import Path
 # load .env.test if present (helps CI/local)
 from dotenv import load_dotenv
@@ -9,7 +8,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env.test", override=True)
 
 
 
-
+import pytest
 # app imports (adapt if your project uses different names)
 from app import create_app, db as _db
 from config import build_postgres_uri  # if you have it, otherwise use env var
