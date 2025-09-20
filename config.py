@@ -20,6 +20,7 @@ def build_postgres_uri():
     host = os.getenv("POSTGRES_HOST")
     port = os.getenv("POSTGRES_PORT")
     db_name = os.getenv("POSTGRES_DB")
+
     if all([user, password, host, port, db_name]):
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
     return None

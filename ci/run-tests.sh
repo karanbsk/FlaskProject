@@ -1,12 +1,34 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 set -euo pipefail
 
-# ---------- Config (fall back to sensible defaults) ----------
-POSTGRES_HOST="${POSTGRES_HOST:-postgres}"
-POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-POSTGRES_USER="${POSTGRES_USER:-test_user}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
-POSTGRES_DB="${POSTGRES_DB:-test_db}"
+
+# Use script directory as base so relative ENV_FILE paths are resolved predictably
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# Default env file path (relative to repo root). Override via ENV_FILE env var.
+ENV_FILE="${ENV_FILE:-${SCRIPT_DIR}/../.env.test}"
+
+# --- Load environment file (local test) ---
+if [ -f "${ENV_FILE}" ]; then
+  echo "Loading env from ${ENV_FILE}"
+  # quick check for CRLF (DOS) line endings which can cause sourcing issues
+  if grep -Iq . "${ENV_FILE}" && grep -n $'\r' "${ENV_FILE}" >/dev/null 2>&1; then
+    echo "WARNING: ${ENV_FILE} appears to contain CRLF (Windows) line endings — convert to LF."
+  fi
+
+  # Export all variables from file into environment
+  set -a   # export all assignments
+  # shellcheck disable=SC1090
+  . "${ENV_FILE}"
+  set +a
+else
+  echo "Env file ${ENV_FILE} not found — using environment variables"
+  # ---------- Config (fall back to sensible defaults) ----------
+  POSTGRES_HOST="${POSTGRES_HOST:-postgres}"
+  POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+  POSTGRES_USER="${POSTGRES_USER:-test_user}"
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
+  POSTGRES_DB="${POSTGRES_DB:-test_db}"
+fi
 
 # Maintenance DB to connect to when doing DROP/CREATE
 MAINT_DB="${PG_ADMIN_DB:-postgres}"

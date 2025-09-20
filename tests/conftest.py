@@ -45,9 +45,11 @@ def _build_pg_url():
     # fallback to POSTGRES_* env vars
     user = os.environ.get("POSTGRES_USER")
     pwd = os.environ.get("POSTGRES_PASSWORD")
-    host = os.environ.get("POSTGRES_HOST", "postgres")
+    host = os.environ.get("POSTGRES_HOST", "db")
     port = os.environ.get("POSTGRES_PORT", "5432")
     db = os.environ.get("POSTGRES_DB")
+    
+
     if user and pwd and db:
         return f"postgresql://{user}:{pwd}@{host}:{port}/{db}"
     return None

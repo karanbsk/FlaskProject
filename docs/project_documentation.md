@@ -214,15 +214,15 @@ FlaskProject/
 
 ### Diagrams
 
-[Architecture Diagram](https://github.com/karanbsk/FlaskProject/blob/main/docs/architecture.png)
+[Architecture Diagram](https://github.com/karanbsk/FlaskProject/blob/main/docs/diagrams/architecture.png)
 
-[Docker & Container Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/docker_flow.png)
+[Docker & Container Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/diagrams/docker_flow.png)
 
-[Database Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/db_flow.png)
+[Database Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/diagrams/db_flow.png)
 
-[CI/CD Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/cicd_flow.png)
+[CI/CD Flow](https://github.com/karanbsk/FlaskProject/blob/main/docs/diagrams/cicd_flow.png)
 
-[Future Roadmap / Monitoring](https://github.com/karanbsk/FlaskProject/blob/main/docs/monitoring_flow.png)
+[Future Roadmap / Monitoring](https://github.com/karanbsk/FlaskProject/blob/main/docs/diagrams/monitoring_flow.png)
 
 External References
 
