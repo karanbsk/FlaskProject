@@ -3,11 +3,12 @@ import os
 import subprocess
 import pytest
 from pathlib import Path
-from app import create_app, db
-
 # load .env.test if present (helps CI/local)
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.test", override=True)
+
+
+
 
 # app imports (adapt if your project uses different names)
 from app import create_app, db as _db
