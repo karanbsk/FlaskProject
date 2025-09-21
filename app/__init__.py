@@ -38,10 +38,14 @@ def create_app():
     app.config.from_object(get_config())
      
     
-    uri = build_postgres_uri()
-    app.config['SQLALCHEMY_DATABASE_URI'] = uri
+    uri = os.environ.get("DATABASE_URL") or build_postgres_uri()
+    if uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = uri
+    else:
+        # Keep whatever the config class already set (sqlite fallback, etc).
+        app.logger.debug("No explicit DB URI found; leaving SQLALCHEMY_DATABASE_URI from config object.")
 
-    app.logger.info("SQLAlchemy URI set to %s", mask_db_uri(uri))
+    app.logger.info("SQLAlchemy URI set to %s", mask_db_uri(app.config.get('SQLALCHEMY_DATABASE_URI')))
      
     app.jinja_env.auto_reload = app.debug  
     # Force Flask/Jinja template auto-reload
