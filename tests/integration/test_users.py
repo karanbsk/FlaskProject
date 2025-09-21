@@ -6,10 +6,13 @@ pytestmark = pytest.mark.integration
 def test_user_add_and_delete(db_session, user_factory):
     # Add user via model
     from app.models import User
+    total_before = User.query.count()
+    print(f"DEBUG: Total User count before user added:{total_before}")
     user, raw_pw, email = user_factory(username="testuser", create=True)
     
 
     total = User.query.count()
+    print(f"DEBUG: Total User count after user added:{total}")
     assert total == 2
 
     # Delete user
@@ -17,6 +20,7 @@ def test_user_add_and_delete(db_session, user_factory):
     db_session.commit()
 
     total_after = User.query.count()
+    print(f"DEBUG: Total User count after user deletion:{total_after}")
     assert total_after == 1
     
 def test_add_user_route(pg_client, user_factory):
