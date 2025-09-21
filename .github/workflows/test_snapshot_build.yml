@@ -74,7 +74,7 @@ jobs:
             echo "waiting for postgres..."
             sleep 1
           done
-          
+
       - name: Run Flask-Migrate migrations
         env:
           FLASK_APP: wsgi.py
@@ -195,7 +195,7 @@ jobs:
       - name: Delete old images (keep 2)
         uses: actions/delete-package-versions@v5
         with:
-          package-name: flaskapp                    
+          package-name: flask-devops-portfolio                    
           package-type: 'container'
           min-versions-to-keep: 2
           delete-only-pre-release-versions: false
