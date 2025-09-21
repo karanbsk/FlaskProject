@@ -21,6 +21,21 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_CONFIG: "testing"
+    services:
+      postgres:
+        image: postgres:14
+        # supply values from repository secrets (add them in Settings → Secrets)
+        env:
+          POSTGRES_USER: ${{ secrets.DOTENV_TEST_FILE.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DOTENV_TEST_FILE.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.DOTENV_TEST_FILE.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +65,7 @@ jobs:
       - name: Create .env.test file from secret
         run: |
           echo "${{ secrets.DOTENV_TEST_FILE }}" > .env.test
-          
+
       - name: Run tests (produce junit xml & coverage)
         run: |
           mkdir -p reports
