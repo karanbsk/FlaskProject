@@ -74,7 +74,18 @@ jobs:
             echo "waiting for postgres..."
             sleep 1
           done
+          
+      - name: Run Flask-Migrate migrations
+        env:
+          FLASK_APP: wsgi.py
+          DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}
+        run: |
+          # Show effective DATABASE_URL (masked in GH logs by Actions)
+          echo "Running flask db upgrade against $DATABASE_URL"
 
+          # Apply migrations
+          flask db upgrade
+          
       - name: Run tests (produce junit xml & coverage)
         run: |
           mkdir -p reports

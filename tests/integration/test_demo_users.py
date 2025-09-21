@@ -3,7 +3,7 @@ import pytest
 from app.services.users_service import RootDeletionError
  
 pytestmark = pytest.mark.integration
-def test_user_add_and_delete(db_session, user_factory):
+def test_demo_user_add_and_delete(db_session, user_factory):
     # Add user via model
     from app.models import User
     total_before = User.query.count()
@@ -23,7 +23,7 @@ def test_user_add_and_delete(db_session, user_factory):
     print(f"DEBUG: Total User count after user deletion:{total_after}")
     assert total_after == 1
     
-def test_add_user_route(pg_client, user_factory):
+def test_add_demo_user_route(pg_client, user_factory):
     creds = user_factory(username="test_user_01", create=False)
     payload = {
         "username": creds["username"],
