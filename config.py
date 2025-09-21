@@ -1,6 +1,7 @@
 # config.py
 import os
 from datetime import timedelta
+from urllib.parse import urlparse, urlunparse
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -14,14 +15,32 @@ SECRET_KEY = os.getenv("SECRET_KEY") or (
 
 # Helper function to build Postgres URI        
 def build_postgres_uri():
-    user = os.getenv("POSTGRES_USER", "fallback_user")
-    password = os.getenv("POSTGRES_PASSWORD", "fallback_password")
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
-    db_name = os.getenv("POSTGRES_DB", "fallback_db")
+    user = os.getenv("POSTGRES_USER")
+    password = os.getenv("POSTGRES_PASSWORD")
+    host = os.getenv("POSTGRES_HOST")
+    port = os.getenv("POSTGRES_PORT")
+    db_name = os.getenv("POSTGRES_DB")
+
     if all([user, password, host, port, db_name]):
         return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
     return None
+
+def mask_db_uri(uri: str) -> str:
+    """Return DB URI with password masked, safe for logging."""
+    if not uri:
+        return uri
+    try:
+        p = urlparse(uri)
+        user = p.username or ""
+        host = p.hostname or ""
+        port = f":{p.port}" if p.port else ""
+        if user:
+            netloc = f"{user}:***@{host}{port}"
+        else:
+            netloc = f"{host}{port}"
+        return urlunparse((p.scheme, netloc, p.path, '', '', ''))
+    except Exception:
+        return uri[:20] + "...(masked)"
 
 class Config:
     """
@@ -63,16 +82,12 @@ class TestingConfig(Config):
     DEBUG = True
     ENV_NAME = "Testing"
     SESSION_COOKIE_SECURE = False  
+    SQLALCHEMY_DATABASE_URI = build_postgres_uri() or f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
+    WTF_CSRF_ENABLED = False
+    PRESERVE_CONTEXT_ON_EXCEPTION = False
     
-    # Use in-memory DB for snapshot generation
-    if os.getenv("SNAPSHOT_GENERATION", "false").lower() == "true":
-        SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
-    else:
-        SQLALCHEMY_DATABASE_URI = os.getenv(
-            'TEST_DATABASE_URI',
-            f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
-        )
-
+    
+    
 class ProductionConfig(Config):
     DEBUG = False
     ENV_NAME = "Production"
@@ -106,7 +121,7 @@ def get_config():
     print(f" Loading configuration: {env}") 
     config_class = CONFIG_MAP.get(env, DevelopmentConfig)
     #Only validate production config here, not at import time
-    if env == ProductionConfig:
+    if config_class is ProductionConfig:
         config_class.init_db_uri()  # Ensure DB URI is set for Production
     return config_class    
 

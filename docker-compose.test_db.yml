@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:15
+    env_file: .env.test
+    ports: 
+      - "5433:5432"
+    volumes:
+      - pgtestdata:/var/lib/postgresql/data
+    #healthcheck:
+    #   test: ["CMD-SHELL", "psql \"$${DATABASE_URL}\" -c '\\q' >/dev/null 2>&1 || exit 1"]
+    #   interval: 2s
+    #   timeout: 2s
+    #   retries: 15
+    #   start_period: 5s
+    networks:
+      - flask_network
+
+  app:
+    
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    env_file: .env.test
+    environment:
+      - TESTING=1
+      - PYTHONPATH=/app
+    depends_on:
+      - db
+    working_dir: /app
+    volumes:
+      - ./:/app:cached
+    # command: ["./ci/run-tests.sh"]   # run-tests.sh should wait for DB then run tests
+    networks:
+      - flask_network
+volumes:
+  pgtestdata:
+
+networks:
+  flask_network:

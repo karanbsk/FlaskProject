@@ -135,11 +135,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env.prod
-.env.dev
-.env.test
-.env.local
-.env
+.env*
 .envrc
 .venv
 env/
@@ -219,7 +215,7 @@ __marimo__/
 *.sqlite3
 *.sqlite3-journal
 postgres_data/
-
+*.dump
 # OS / Misc
 .DS_Store
 Thumbs.db

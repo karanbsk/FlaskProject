@@ -7,9 +7,16 @@ flake8
 
 # Testing
 pytest
+pytest-cov
 pytest-flask
+pytest-xdist
 tox
 coverage
 
 # Database migration
 Flask-Migrate
+
+# Optional: For database existence checks and creation in tests
+sqlalchemy-utils
+
+bs4

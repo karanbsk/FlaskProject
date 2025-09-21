@@ -178,7 +178,7 @@ def dashboard():
     # API health checks
     api_health = {}
     base_url = os.getenv("APP_BASE_URL", "http://localhost:5000")
-    endpoints = ["/", "/ui", "/users"]
+    endpoints = ["/", "/ui", "/api/users"]
     for ep in endpoints:
         try:
             r = requests.get(base_url + ep, timeout=2)
@@ -239,7 +239,7 @@ def dashboard_data():
 
     api_health = {}
     base_url = os.getenv("APP_BASE_URL", "http://localhost:5000")
-    for ep in ["/", "/ui", "/users"]:
+    for ep in ["/", "/ui", "/api/users"]:
         try:
             r = requests.get(base_url + ep, timeout=2)
             api_health[ep] = "Healthy" if r.status_code == 200 else f"Error {r.status_code}"

@@ -2,10 +2,9 @@
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from config import get_config
+from config import get_config, build_postgres_uri, mask_db_uri
 from flask_migrate import Migrate
 import logging
-
 
 
 #initialize db and migrate
@@ -16,6 +15,8 @@ migrate = Migrate()
 def create_app():
     
     config_class = get_config()
+    
+
     
     if config_class.ENV_NAME == "Production":
         if not os.getenv("PROD_DATABASE_URI"):
@@ -30,12 +31,21 @@ def create_app():
     static_path = os.path.join(base_dir, 'static')
              
     #Initialize Flask App
-    app = Flask(__name__,template_folder=template_path, static_folder=static_path)
+    app = Flask(__name__,template_folder=template_path, static_folder=static_path, instance_relative_config=False)
     app.config.from_object(config_class)
     
     
     app.config.from_object(get_config())
      
+    
+    uri = os.environ.get("DATABASE_URL") or build_postgres_uri()
+    if uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = uri
+    else:
+        # Keep whatever the config class already set (sqlite fallback, etc).
+        app.logger.debug("No explicit DB URI found; leaving SQLALCHEMY_DATABASE_URI from config object.")
+
+    app.logger.info("SQLAlchemy URI set to %s", mask_db_uri(app.config.get('SQLALCHEMY_DATABASE_URI')))
      
     app.jinja_env.auto_reload = app.debug  
     # Force Flask/Jinja template auto-reload

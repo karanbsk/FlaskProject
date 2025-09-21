@@ -22,16 +22,28 @@ COPY . /app
 # ---- dev: development image ----
 FROM builder AS dev
 
+RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1000 devgroup \
+    && useradd -m -u 1000 -g devgroup devuser
+
+WORKDIR /app
+
+
 # Install dev packages into /install
 COPY requirements-dev.txt .
 RUN pip install -r requirements-dev.txt 
+
+COPY . /app
+
+RUN chmod +x /app/entrypoint.sh
+RUN chown -R devuser:devgroup /app
 
 ENV PATH=/install/bin:$PATH \
     FLASK_APP=wsgi \
     FLASK_RUN_HOST=0.0.0.0
 
-
-WORKDIR /app
+USER devuser
 
 EXPOSE 5000
 CMD ["flask", "run", "--host=0.0.0.0"]

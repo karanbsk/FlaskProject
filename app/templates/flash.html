@@ -1,12 +1,11 @@
-{# templates/_flash.html #}
-<div id="flash-container" class="position-fixed top-0 start-50 translate-middle-x p-3"
-     style="z-index: 1050; width: 100%; max-width: 500px;">
+{# templates/_flash.html - universal top-center flash container #}
+<div id="flash-container" class="app-flash-root position-fixed top-0 start-50 translate-middle-x p-3" aria-live="polite" aria-atomic="true" style="z-index: 1080; width: 100%; max-width: 600px; pointer-events: none;">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show shadow text-center" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      {% for category, msg in messages %}
+        <div class="app-flash-item alert alert-{{ category }} alert-dismissible show" role="alert" data-flash>
+          <div class="app-flash-body">{{ msg }}</div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="pointer-events: auto;"></button>
         </div>
       {% endfor %}
     {% endif %}
@@ -14,15 +13,104 @@
 </div>
 
 <script>
-  // Auto-hide flash messages with fade effect
-  setTimeout(() => {
-    const alerts = document.querySelectorAll('#flash-container .alert');
-    alerts.forEach(alert => {
-      alert.classList.add('fade-out');
-      setTimeout(() => {
-        let bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
-      }, 1000); // match CSS transition duration
+  // Universal flash behavior: auto-dismiss and ensure exactly one visible message
+  (function () {
+    const FLASH_TIMEOUT = 3500; // 3.5 seconds
+
+    function scheduleDismiss(el, timeout = FLASH_TIMEOUT) {
+      if (!el) return;
+      // store timer id on element so we can clear it if necessary
+      clearTimeout(el.__flashTimer);
+      el.__flashTimer = setTimeout(() => {
+        try {
+          // Fade then remove using bootstrap Alert API if available
+          let bsAlert = null;
+          if (window.bootstrap && bootstrap.Alert) {
+            bsAlert = new bootstrap.Alert(el);
+            bsAlert.close();
+          } else {
+            el.classList.remove('show');
+            el.remove();
+          }
+        } catch (e) { el.remove(); }
+      }, timeout);
+    }
+
+    function clearOtherFlashes(keepEl) {
+      const container = document.getElementById('flash-container');
+      if (!container) return;
+      const items = Array.from(container.querySelectorAll('[data-flash]'));
+      items.forEach(it => {
+        if (it !== keepEl) {
+          // immediately remove other flashes
+          if (window.bootstrap && bootstrap.Alert) {
+            try { new bootstrap.Alert(it).close(); } catch (e) { it.remove(); }
+          } else {
+            it.remove();
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('flash-container');
+      if (!container) return;
+
+      // If server rendered any flashes, keep only the last (or choose first)
+      const items = container.querySelectorAll('[data-flash]');
+      if (items.length > 0) {
+        // keep the last one (most recent)
+        const keep = items[items.length - 1];
+        clearOtherFlashes(keep);
+        scheduleDismiss(keep);
+      }
+
+      // delegate close buttons to clear timers
+      container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-close');
+        if (!btn) return;
+        const item = btn.closest('[data-flash]');
+        if (item && item.__flashTimer) {
+          clearTimeout(item.__flashTimer);
+        }
+      });
     });
-  }, 4000);
+
+    // Expose programmatic API to show toasts from client code
+    window.UIFlash = {
+      show: function (message, category = 'info', timeout = FLASH_TIMEOUT) {
+        const container = document.getElementById('flash-container');
+        if (!container) return;
+
+        // create element
+        const div = document.createElement('div');
+        div.className = `app-flash-item alert alert-${category} alert-dismissible show`;
+        div.setAttribute('role', 'alert');
+        div.setAttribute('data-flash', '');
+        div.style.pointerEvents = 'auto';
+        div.innerHTML = `<div class="app-flash-body">${message}</div>
+                         <button type="button" class="btn-close" aria-label="Close"></button>`;
+
+        // remove existing flashes
+        clearOtherFlashes();
+
+        // insert
+        container.appendChild(div);
+        scheduleDismiss(div, timeout);
+
+        // attach close handler
+        const closeBtn = div.querySelector('.btn-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', () => {
+            if (div.__flashTimer) clearTimeout(div.__flashTimer);
+            if (window.bootstrap && bootstrap.Alert) {
+              try { new bootstrap.Alert(div).close(); } catch (e) { div.remove(); }
+            } else {
+              div.remove();
+            }
+          });
+        }
+      }
+    };
+  })();
 </script>
