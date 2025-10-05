@@ -218,11 +218,23 @@ jobs:
       - name: Run app container (smoke)
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          docker run -d --name smoke-app --network smoke-net \
-            --env-file .env.smoke \           
+          # sanitize/trimming
+          IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
+          echo "Running smoke with image: $IMAGE"
+
+          # sanity-check image format
+          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
+            echo "ERROR: invalid image reference: '$IMAGE'"; exit 1
+          fi
+
+          # run container with env-file
+          docker run -d --rm --name smoke-app --network smoke-net \
+            --env-file .env.smoke \
             -e FLASK_ENV=production \
             -p 5000:5000 \
             "$IMAGE"
+
+          # give it a few seconds to start
           sleep 3
 
       - name: Remove .env.smoke (cleanup)
