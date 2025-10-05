@@ -196,7 +196,7 @@ jobs:
           echo "----- .env.smoke (masked) -----"
           cat -v .env.smoke
           echo "-------------------------------"
-          fi
+          
 
       - name: Validate image string
         run: |
