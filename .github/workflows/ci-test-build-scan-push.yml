@@ -209,23 +209,51 @@ jobs:
           fi
           echo "IMAGE_VALID=1" >> $GITHUB_ENV
 
-      - name: Check runtime binary (gunicorn) & run container (fallback to flask if missing)
+     # --- Insert into smoke job ---
+      - name: Detect gunicorn path and run container (explicit path attempt)
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
-          echo "Checking runtime in $IMAGE"
+          echo "Inspecting runtime in image: $IMAGE"
 
-          # check presence of gunicorn in image (non-destructive)
-          docker run --rm --entrypoint "" "$IMAGE" sh -c 'command -v gunicorn && echo "FOUND_GUNICORN" || echo "NO_GUNICORN"' > /tmp/gunicorn_check || true
-          if grep -q "FOUND_GUNICORN" /tmp/gunicorn_check; then
-            echo "gunicorn found in image. Starting container with default command."
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 8000:8000 "$IMAGE"
+          # Run a short container to probe for binaries; capture output (do not start app yet)
+          docker run --rm --entrypoint "" "$IMAGE" sh -c '\
+            echo "SHELL_PATH=$(command -v sh || true)"; \
+            echo "PYTHON_PATH=$(command -v python || command -v python3 || true)"; \
+            GUN=$(command -v gunicorn || true); \
+            [ -n "$GUN" ] && echo "GUNICORN_PATH=$GUN" || echo "GUNICORN_PATH="; \
+            # also print PATH for debugging
+            echo "PATH=$PATH" \
+          ' > /tmp/runtime_probe || true
+
+          echo "---- runtime probe (masked) ----"
+          sed -n '1,100p' /tmp/runtime_probe | sed -E 's#(PYTHON_PATH)=.*#\1=<hidden>#g; s#(GUNICORN_PATH)=.*#\1=<hidden>#g'
+          echo "---------------------------------"
+
+          # Read real values (unmasked) into variables for conditional logic
+          PYTHON_PATH=$(sed -n 's/^PYTHON_PATH=\(.*\)$/\1/p' /tmp/runtime_probe || true)
+          GUNICORN_PATH=$(sed -n 's/^GUNICORN_PATH=\(.*\)$/\1/p' /tmp/runtime_probe || true)
+
+          echo "PYTHON_PATH='$PYTHON_PATH'"
+          echo "GUNICORN_PATH='$GUNICORN_PATH'"
+
+          # run with the best available way
+          if [ -n "$GUNICORN_PATH" ] && [ -x "$GUNICORN_PATH" ]; then
+            echo "Running image using absolute gunicorn path: $GUNICORN_PATH"
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 8000:8000 "$IMAGE" "$GUNICORN_PATH" "wsgi:app" "-b" "0.0.0.0:8000" "--workers" "2"
+          elif [ -n "$PYTHON_PATH" ]; then
+            echo "gunicorn binary not present — trying python -m gunicorn using $PYTHON_PATH"
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" -p 8000:8000 "$IMAGE" \
+              sh -c "'$PYTHON_PATH' -m gunicorn wsgi:app -b 0.0.0.0:8000 --workers 2"
           else
-            echo "gunicorn NOT found; using fallback: python -m flask run for smoke test"
-            # run container with an override entrypoint to use flask dev server for smoke
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" "$IMAGE" \
+            echo "No usable python or gunicorn found inside image; falling back to flask dev server"
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" -p 8000:8000 "$IMAGE" \
               sh -c 'python -m flask run --host=0.0.0.0 --port=8000'
           fi
+
+          # wait a few seconds to allow start
+          sleep 3
+
 
       - name: Wait for /healthz
         run: |
