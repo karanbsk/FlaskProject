@@ -1,83 +1,60 @@
-#Dockerfile
-# ---- builder: install core dependencies ----
+# Dockerfile.prod (modified - bullseye runtime)
 FROM python:3.11-slim AS builder
+WORKDIR /src
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# install build deps (builder only)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends --only-upgrade build-essential gcc libssl-dev libsqlite3-0 openssl libssl3 || true \
+ #&& apt-get install -y --no-install-recommends --only-upgrade libsqlite3-0 openssl libssl3 || true \
+ && apt-get purge -y sqlite3 libsqlite3-0 libsqlite3-dev || true \
+ && apt-get autoremove -y --purge \
+ && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+COPY pyproject.toml requirements.txt /src/
 
-# System dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN python -m pip install --upgrade pip setuptools wheel
 
-# Install prod dependencies into /install
-COPY requirements.txt .
-RUN pip install --upgrade pip \
-    && pip install --prefix=/install -r requirements.txt
+RUN python -m pip wheel --wheel-dir=/wheels -r requirements.txt
 
-COPY . /app
+RUN python -m pip install --no-index --find-links=/wheels -r requirements.txt --target=/install \
+ && rm -rf /wheels
 
-# ---- dev: development image ----
-FROM builder AS dev
+COPY . /src
 
-RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
-
-RUN groupadd -g 1000 devgroup \
-    && useradd -m -u 1000 -g devgroup devuser
-
-WORKDIR /app
-
-
-# Install dev packages into /install
-COPY requirements-dev.txt .
-RUN pip install -r requirements-dev.txt 
-
-COPY . /app
-
-RUN chmod +x /app/entrypoint.sh
-RUN chown -R devuser:devgroup /app
-
-ENV PATH=/install/bin:$PATH \
-    FLASK_APP=wsgi \
-    FLASK_RUN_HOST=0.0.0.0
-
-USER devuser
-
-EXPOSE 5000
-CMD ["flask", "run", "--host=0.0.0.0"]
-
-# ---- prod: production image ----
+# ----- runtime stage using slim-bullseye -----
 FROM python:3.11-slim AS prod
-
-ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages" \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
 WORKDIR /app
 
-# Copy dependencies and app from builder
-COPY --from=builder /install /usr/local
-#COPY --from=builder /app /app
+# IMPORTANT: combine update+purge in single RUN (avoids misconfig DS017)
+# runtime: remove sqlite if present, upgrade openssl/libssl, cleanup
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends --only-upgrade build-essential libsqlite3-0 openssl libssl3 || true && \
+    apt-get purge -y sqlite3 libsqlite3-0 libsqlite3-dev || true && \
+    apt-get autoremove -y --purge && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy only the folders/files needed for prod
-COPY app/ ./app/
-COPY wsgi.py .
-COPY config.py .
-COPY migrations/ ./migrations/
 
-# Entrypoint script to run migrations and start the app
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+# Remove python sqlite extension from lib-dynload if present (only do this if your app doesn't need sqlite)
+RUN if [ -d /usr/local/lib/python3.11/lib-dynload ]; then \
+      rm -f /usr/local/lib/python3.11/lib-dynload/_sqlite3*.so || true; \
+    fi
 
-# Add non-root user
-RUN useradd -u 1000 --create-home appuser \
-    && chown -R appuser:appuser /app
+RUN rm -rf /usr/local/lib/python3.11/site-packages/*
+
+# Copy installed python packages (from builder)
+COPY --from=builder /install /usr/local/lib/python3.11/site-packages
+
+# Copy app
+COPY  --chown=appuser:appuser --from=builder /src/ /app/
+
+RUN rm -rf requirements* .dockerignore* pyproject.toml /app/tests/ pytest*
+
+# Optional: create non-root user & fix perms
+RUN useradd --create-home appuser \
+ && chown -R appuser:appuser /app /usr/local/lib/python3.11/site-packages
 USER appuser
 
-EXPOSE 8000
+ENV APP_CONFIG=production
 
-ENV GUNICORN_WORKERS=3
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "wsgi:app", "--workers", "${GUNICORN_WORKERS}", "--threads", "2"]
+CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", "--workers", "2"]

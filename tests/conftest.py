@@ -1,7 +1,9 @@
 # tests/conftest.py
 import os
-import subprocess
+import logging              
 from pathlib import Path
+from random import SystemRandom
+import shutil                             
 # load .env.test if present (helps CI/local)
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.test", override=True)
@@ -15,20 +17,23 @@ from config import build_postgres_uri  # if you have it, otherwise use env var
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
+logger = logging.getLogger(__name__)
+# Optionally configure basic logging in tests; CI/test runner will capture logs anyway
+logging.basicConfig(level=logging.INFO)                                    
 # Utility to create a compliant random password (used by factory)
 def make_compliant_password(min_length: int = 12) -> str:
-    import string, random
+    import string, secrets
     if min_length < 8:
         min_length = 12
     lowers = string.ascii_lowercase
     uppers = string.ascii_uppercase
     digits = string.digits
     specials = "@$!%*?&#"
-    password_chars = [random.choice(lowers), random.choice(uppers), random.choice(digits), random.choice(specials)]
+    password_chars = [secrets.choice(lowers), secrets.choice(uppers), secrets.choice(digits), secrets.choice(specials)]
     all_chars = lowers + uppers + digits + specials
     remaining = max(min_length - len(password_chars), 0)
-    password_chars += [random.choice(all_chars) for _ in range(remaining)]
-    random.shuffle(password_chars)
+    password_chars += [secrets.choice(all_chars) for _ in range(remaining)]
+    SystemRandom().shuffle(password_chars)
     return "".join(password_chars)
 
 # Build PG URL; prefer explicit env var, then config builder
@@ -38,7 +43,8 @@ def _build_pg_url():
         return url
     try:
         url = build_postgres_uri()
-    except Exception:
+    except Exception as exc:
+        logger.debug("build_postgres_uri failed: %s", exc)                                                
         url = None
     if url:
         return url
@@ -56,9 +62,7 @@ def _build_pg_url():
 
 @pytest.fixture(scope="session")
 def pg_url():
-    url = build_postgres_uri()
-    print(f"DEBUG: what's in build_postgres_uri():{build_postgres_uri()}")
-    print(f"DEBUG: pg_url:{url}")
+    url = _build_pg_url()
     if not url:
         raise RuntimeError("No Postgres URL available (set DATABASE_URL or TEST_DATABASE_URL or POSTGRES_* env vars)")
     return url
@@ -91,16 +95,17 @@ def app():
     # init_app may raise or re-register. So attempt init_app but ignore duplicate errors.
      try:
         _db.init_app(_app)
-     except Exception:
+     except Exception as exc:
         # If it's already been initialized by create_app, ignore the error.
-        pass
+        logger.debug("Ignoring init_app exception (likely already initialized): %s", exc)
 
     # Create schema once for the session under app context
      with _app.app_context():
         try:
             _db.create_all()
-        except Exception:
+        except Exception as exc:
             # If create_all fails (e.g. different metadata), raise so you can inspect
+            logger.exception("create_all() failed during test app setup: %s", exc)                                                                      
             raise
 
      yield _app
@@ -109,12 +114,12 @@ def app():
      with _app.app_context():
         try:
             _db.session.remove()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring session.remove() error during teardown: %s", exc)
         try:
             _db.drop_all()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring drop_all() error during teardown: %s", exc)
 
 
 
@@ -151,11 +156,7 @@ def _maybe_push_app_ctx(request):
     with app_obj.app_context():
         yield
 
-
-
-import os
 from subprocess import run, CalledProcessError, CompletedProcess
-from pathlib import Path
 
 @pytest.fixture(scope="session")
 def pg_app(pg_url, pg_engine):
@@ -174,8 +175,8 @@ def pg_app(pg_url, pg_engine):
     # Safe init_app usage: try but ignore duplicate registration errors
     try:
         _db.init_app(_app)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Ignoring init_app exception for pg_app: %s", exc)
     from sqlalchemy import inspect
 
 # drop any existing tables first to ensure alembic migrations apply cleanly
@@ -199,7 +200,7 @@ def pg_app(pg_url, pg_engine):
         existing_tables = [t for t in inspector.get_table_names(schema='public') if t != 'alembic_version']
 
         if existing_tables:
-            print("Dropping existing application tables before alembic upgrade:", existing_tables)
+            logger.info("Dropping existing application tables before alembic upgrade: %s", existing_tables)
             # Use a transaction and DROP TABLE ... CASCADE for each table to ensure a clean slate.
             # We use sa.text to avoid quoting issues and execute on the raw connection.
             for tbl in existing_tables:
@@ -207,45 +208,53 @@ def pg_app(pg_url, pg_engine):
                     conn.execute(_sa.text(f'DROP TABLE IF EXISTS "{tbl}" CASCADE'))
                 except Exception as exc:
                     # Log and re-raise so you can see failures in CI/test output
-                    print(f"Failed to drop table {tbl}: {exc}")
+                    logger.exception("Failed to drop table %s: %s", tbl, exc)
                     raise
         
     # Run migrations (or fallback to create_all)
-    try:
-        res: CompletedProcess = run(
-            alembic_cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-            cwd=str(project_root),
-            env=proc_env,
-        )
-        if res.stdout:
-            print("Alembic stdout:", res.stdout)
-        if res.stderr:
-            print("Alembic stderr:", res.stderr)
-
-    except FileNotFoundError:
-        print("Alembic CLI not found on PATH; falling back to create_all()")
+    if shutil.which("alembic") is None:
+        logger.info("Alembic CLI not on PATH; falling back to create_all()")
         _db.metadata.create_all(bind=pg_engine)
+    else:
+        try:
+            res: CompletedProcess = run(
+                alembic_cmd,
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=str(project_root),
+                env=proc_env,
+            )
+            if res.stdout:
+                logger.info("Alembic stdout: %s", res.stdout)
+            if res.stderr:
+                logger.warning("Alembic stderr: %s", res.stderr)
 
-    except CalledProcessError as e:
-        print("Alembic command failed with return code", e.returncode)
-        if getattr(e, "stdout", None):
-            print("alembic stdout:\n", e.stdout)
-        if getattr(e, "stderr", None):
-            print("alembic stderr:\n", e.stderr)
-        print("Falling back to _db.metadata.create_all(bind=pg_engine)")
-        _db.metadata.create_all(bind=pg_engine)
+        except FileNotFoundError:
+            print("Alembic CLI not found on PATH; falling back to create_all()")
+            _db.metadata.create_all(bind=pg_engine)
+
+        except CalledProcessError as e:
+            logger.exception("Alembic command failed with return code %s", e.returncode)
+            if getattr(e, "stdout", None):
+                logger.error("alembic stdout:\n%s", e.stdout)
+            if getattr(e, "stderr", None):
+                logger.error("alembic stderr:\n%s", e.stderr)
+            logger.info("Falling back to _db.metadata.create_all(bind=pg_engine)")
+            _db.metadata.create_all(bind=pg_engine)
 
     # --- Yield the app to tests ---
     yield _app
 
     # --- Teardown: drop schema (best-effort) ---
     with _app.app_context():
-        from app.models import User
-        _db.session.query(User).filter(User.username.in_(["root", "admin"])).delete(synchronize_session=False)
-        _db.session.commit()
+        try:    
+            from app.models import User
+            _db.session.query(User).filter(User.username.in_(["root", "admin"])).delete(synchronize_session=False)
+            _db.session.commit()
+        except Exception as exc:  
+            logger.debug("Teardown cleanup failed: %s", exc)
+
 
 
 @pytest.fixture(scope="function")
@@ -265,17 +274,17 @@ def db_session(pg_app, pg_engine):
     finally:
         try:
             sess.remove()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring sess.remove() error: %s", exc)
         try:
             if trans.is_active:
                 trans.rollback()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring transaction rollback error: %s", exc)
         try:
             conn.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring conn.close() error: %s", exc)
         _db.session = old_session
 
 @pytest.fixture(scope="function")
@@ -337,9 +346,9 @@ def recreate_database(pg_url, pg_engine):
         # Import models to populate metadata (adjust module path if needed)
         try:
             importlib.import_module("app.models")
-        except Exception:
+        except Exception as exc:
             # If your models use multiple modules, import them here or ensure app factory imports them
-            pass
+            logger.debug("Optional import of app.models failed (safe to ignore in some contexts): %s", exc)
 
         # Create schema using the metadata attached to the app's SQLAlchemy instance.
         # Prefer metadata.create_all (avoids SQLAlchemy.create_all signature mismatch)
@@ -351,10 +360,10 @@ def recreate_database(pg_url, pg_engine):
         # best-effort cleanup
         try:
             _db.session.remove()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring session.remove() during final cleanup: %s", exc)
         try:
             _db.metadata.drop_all(bind=pg_engine)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Ignoring metadata.drop_all() during final cleanup: %s", exc)
         ctx.pop()

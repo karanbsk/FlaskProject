@@ -1,0 +1,59 @@
+#Dockerfile
+# ---- builder: install core dependencies ----
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /src
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential gcc libpq-dev ca-certificates && \
+    apt-get remove -y build-essential gcc && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt requirements-dev.txt /src/
+
+RUN python -m pip install --upgrade pip setuptools wheel
+RUN python -m pip wheel --wheel-dir=/wheels -r requirements-dev.txt && \
+    python -m pip install --no-cache-dir -r requirements-dev.txt
+
+# System dependencies
+
+
+COPY . /src
+
+# ---- dev: development image ----
+FROM builder AS dev
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 1000 devgroup \
+    && useradd -m -u 1000 -g devgroup -s /usr/sbin/nologin devuser
+
+ENV PATH=/install/bin:$PATH \
+    FLASK_APP=wsgi \
+    FLASK_RUN_HOST=0.0.0.0
+
+WORKDIR /app
+
+# Install dev packages into /install
+# COPY requirements-dev.txt /app/requirements-dev.txt
+
+# RUN python -m pip install --upgrade pip setuptools wheel \
+#  && python -m pip install --no-cache-dir -r /app/requirements-dev.txt
+
+COPY --chown=devuser:devgroup --from=builder /src /app
+RUN rm -rf requirements* .dockerignore*
+
+RUN chmod +x /app/entrypoint.sh
+
+USER devuser
+
+EXPOSE 5000
+CMD ["flask", "run", "--host=0.0.0.0"]
+
+HEALTHCHECK CMD python -c "import sys,urllib.request as u; sys.exit(0) if u.urlopen('http://localhost:5000/healthz').getcode()==200 else sys.exit(1)"

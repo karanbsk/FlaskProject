@@ -1,12 +1,70 @@
-__pycache__
+# Python build / cache
+__pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.env
+
+# Virtualenvs
 .venv
 venv
 flask_venv
+
+# Local envs / secrets (ensure .env.* are excluded from context)
+.env
+.env.*
+
+# Git and CI metadata
 .git
+.gitignore
 .github
+ci/
+.gitlab-ci.yml
+.github/workflows/
+
+# Editor / IDE
+.vscode
+.idea
+
+# # Tests and artifacts
+# *test*
+# __tests__
+# tests/
+# *.cover
+# .coverage
+# pytest.ini
+
+# Packaging / metadata / build artifacts
+flaskproject.egg-info
+*.egg-info
+dist/
+build/
+.pytest_cache
+
+# Dev / docs / reports - do NOT copy these into image
+.DS_Store
+README.md
+Makefile
+Dockerfile*
+docker-compose*.yml
+docs/
+*.md
+
+# Security & scanning reports (do not include)
+*.json
+*trivy*
+bandit-report.json
+checkov-report.json
+.bandit
+.flake8
+.mypy_cache
+
+
+# Logs / DBs / caches
 *.sqlite3
 *.log
+
+# Misc
+*.pem
+*.key
+*.crt

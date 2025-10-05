@@ -5,6 +5,10 @@ from app import db
 import re
 from datetime import datetime
 from app.utils import validate_password
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 main = Blueprint('main', __name__)
 
@@ -158,8 +162,11 @@ def dashboard():
             for line in f:
                 if "docker" in line:
                     container_id = line.strip().split("/")[-1][:12]
-    except Exception:
-        pass
+    except (IndexError, AttributeError, ValueError, OSError) as exc:
+        # line didn't contain expected format — record debug information for troubleshooting
+        logger.debug("Could not parse container id from line %r: %s", line, exc)
+        container_id = None
+        
     container_image = os.getenv("APP_IMAGE", "unknown")
     uptime = f"{(time.time() - psutil.boot_time())/3600:.2f} hrs"
 
@@ -227,8 +234,10 @@ def dashboard_data():
             for line in f:
                 if "docker" in line:
                     container_id = line.strip().split("/")[-1][:12]
-    except Exception:
-        pass
+    except (IndexError, AttributeError, ValueError, OSError) as exc:
+        # line didn't contain expected format — record debug information for troubleshooting
+        logger.debug("Could not parse container id from line %r: %s", line, exc)
+        
     container_image = os.getenv("APP_IMAGE", "unknown")
     uptime = f"{(time.time() - psutil.boot_time())/3600:.2f} hrs"
 

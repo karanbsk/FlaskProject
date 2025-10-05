@@ -1,0 +1,9 @@
+scan:
+  skip-dirs:
+    - "./flask_venv/*"
+    - ".git"
+    - "__pycache__"
+  scanners:
+    - vuln
+    - misconfig
+    - secret

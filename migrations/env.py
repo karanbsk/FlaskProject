@@ -9,6 +9,8 @@ from flask import current_app
 import os
 from sqlalchemy import create_engine
 
+logger = logging.getLogger(__name__)
+
 # ensure project root is on sys.path (useful if alembic invoked from different CWD)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -68,20 +70,29 @@ def get_engine():
         try:
             # Flask-SQLAlchemy <3
             return _db.get_engine()
+        except AttributeError:
+            logging.debug("_db.get_engine() not available; trying _db.engine")
         except Exception:
-            try:
-                # Flask-SQLAlchemy >=3
-                return _db.engine
-            except Exception:
-                pass
+            logging.exception("Error calling _db.get_engine(); will try _db.engine as fallback")
+            
+        try:
+            # Flask-SQLAlchemy >=3
+            return _db.engine
+        except AttributeError:
+            logging.debug("_db.engine not available (Flask-SQLAlchemy API mismatch).")
+                
+        except Exception:
+            logging.exception("Unexpected error accessing _db.engine.")
 
     # If that didn't work, try to use current_app (requires app context)
     try:
         if current_app and 'migrate' in current_app.extensions:
             # Flask-Migrate exposes the db via the migrate extension
             return current_app.extensions['migrate'].db.get_engine()
+    except RuntimeError:
+        logging.debug("No Flask application context active when checking current_app.extensions['migrate'].")
     except Exception:
-        pass
+        logging.exception("Unexpected error while trying to get engine via current_app.extensions['migrate'].")
 
     raise RuntimeError("Could not determine SQLAlchemy engine for Alembic. Ensure app is importable and configured.")
 
@@ -111,9 +122,11 @@ def ensure_flask_app():
         existing = current_app._get_current_object()
         if existing is not None:
             return existing
+    except RuntimeError:
+        logging.debug("No active Flask application context found; creating an app via create_app().")
     except Exception:
-        # no current app; proceed to create one
-        pass
+        # Any other unexpected error — log it
+        logging.exception("Unexpected error when checking for existing Flask app context.")
 
     # Call the app factory. If your factory accepts a config name from env,
     # prefer that (e.g. APP_CONFIG). Adjust as needed.

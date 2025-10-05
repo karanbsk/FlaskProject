@@ -119,7 +119,6 @@ def update_user(user_id, updates: dict):
         db.session.add(user)
         db.session.commit()
         db.session.refresh(user)
-        logger.debug("update_user: updated user %s", user_id)
         return user
     except Exception as exc:
         # rollback and raise so tests fail fast with the real problem

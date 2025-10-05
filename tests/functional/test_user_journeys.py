@@ -1,5 +1,8 @@
 # tests/functional/test_user_journeys.py
 import pytest
+import logging
+
+logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.functional
 
@@ -46,5 +49,5 @@ def test_signup_multiple_and_cleanup(pg_client, user_factory, email):
         # then attempt delete endpoint if exists
         dres = pg_client.post(f"/api/users/delete", data={"username": creds["username"]}, follow_redirects=True)
         # ignore delete result; just ensure the DB remains consistent
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Ignored delete error in test cleanup: %s", exc)

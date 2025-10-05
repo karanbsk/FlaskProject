@@ -5,6 +5,8 @@ services:
     build:
       context: .
       target: dev   # Use dev stage in Dockerfile
+      dockerfile: Dockerfile.dev
+    image: flask-devops-portfolio:dev
     container_name: flask_app
     entrypoint: ["/app/entrypoint.sh"]                    #["/bin/sh", "-c", "/app/entrypoint.sh"]
     env_file: .env.dev

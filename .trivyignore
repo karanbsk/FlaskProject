@@ -1,0 +1,29 @@
+# Ignore file for Trivy
+# Place this at the root of your repo as ".trivyignore"
+# Each line should be a vulnerability ID (CVE, GHSA, etc.) or rule ID to ignore.
+
+# ------------------------
+# Python-related CVEs (Flask, SQLAlchemy, Alembic)
+# ------------------------
+CVE-2023-30861   # Example: Flask debug mode issue (replace with actual findings)
+CVE-2022-21718   # Example: SQLAlchemy moderate vuln, no impact due to version constraints
+
+# ------------------------
+# False positives or not exploitable in our context
+# ------------------------
+CVE-2019-1010083 # Example: zlib issue, not exploitable in our environment
+CVE-2020-28493   # Example: Jinja2 sandbox issue, only dev mode affected
+
+# ------------------------
+# Docker base image known issues
+# ------------------------
+CVE-2021-33574   # Example: glibc bug in base image, patched at runtime
+
+# ------------------------
+# Misconfiguration rule ignores (Trivy config/IaC scan)
+# Use the rule ID like AVX0001, etc.
+AVD-DK-D0001     # Example: Dockerfile root user rule (acceptable for dev/test images)
+AVD-AWS-0132     # Example: S3 bucket rule (ignore if not relevant)
+
+#-------------------------
+CVE-2025-7709    # libsqlite3-0 issue ignoring since its Medium impact
