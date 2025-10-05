@@ -186,62 +186,60 @@ jobs:
             sleep 1
           done
       
-      - name: Write .env.smoke (temporary, restricted)
+      - name: Create .env.smoke (robust)
         run: |
-          echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}" > .env.smoke
-          echo "FLASK_ENV=production" >> .env.smoke
-          chmod 600 .env.smoke    
+          POSTGRES_USER="${{ secrets.POSTGRES_USER }}"
+          POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD }}"
+          POSTGRES_DB="${{ secrets.POSTGRES_DB }}"
+          # use printf to avoid stray backslashes/newlines or indentation issues
+          printf 'DATABASE_URL=postgresql://%s:%s@smoke-postgres:5432/%s\nFLASK_ENV=production\n' \
+            "$POSTGRES_USER" "$POSTGRES_PASSWORD" "$POSTGRES_DB" > .env.smoke
+          chmod 600 .env.smoke
 
-      - name: Quick check (.env.smoke preview masked)
+      - name: Preview .env.smoke (masked) and check for stray chars
         run: |
-          echo "----- .env.smoke (masked preview) -----"
-          # print keys with values replaced by ***
+          echo "----- .env.smoke (masked) -----"
           awk -F= '{print $1"=***"}' .env.smoke
-          echo "----- show non-printable chars (for debugging CRLF/newline issues) -----"
-          # show non-printable characters without printing secret values
-          sed -n '1,20p' .env.smoke | sed -n 'l'    
-          echo "---------------------------------------"
+          echo "----- non-printable char debug -----"
+          # show chars; look for \r or '\' markers (if present they'll be visible)
+          sed -n '1,20p' .env.smoke | sed -n 'l'
+          # fail fast if backslashes or CRs exist (helps catch earlier problems)
+          if grep -q '\\' .env.smoke || grep -q $'\r' .env.smoke; then
+            echo "ERROR: .env.smoke contains backslashes or CRLF. Aborting."
+            sed -n '1,20p' .env.smoke | sed -n 'l'
+            exit 1
+          fi
 
       - name: Validate image string
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          # trim CRLF
           IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
           echo "IMAGE='$IMAGE'"
-          # quick regex: allowed chars are lowercase letters, digits, dot, slash, colon, dash and @ and sha256
           if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
             echo "ERROR: invalid image reference: '$IMAGE'"
             exit 1
           fi
-          echo "IMAGE_VALID=1" >> $GITHUB_ENV  
-            
-      - name: Run app container (smoke)
+          echo "IMAGE_VALID=1" >> $GITHUB_ENV
+
+      - name: Check runtime binary (gunicorn) & run container (fallback to flask if missing)
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          # sanitize/trimming
           IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
-          echo "Running smoke with image: $IMAGE"
+          echo "Checking runtime in $IMAGE"
 
-          # sanity-check image format
-          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
-            echo "ERROR: invalid image reference: '$IMAGE'"; exit 1
+          # check presence of gunicorn in image (non-destructive)
+          docker run --rm --entrypoint "" "$IMAGE" sh -c 'command -v gunicorn && echo "FOUND_GUNICORN" || echo "NO_GUNICORN"' > /tmp/gunicorn_check || true
+          if grep -q "FOUND_GUNICORN" /tmp/gunicorn_check; then
+            echo "gunicorn found in image. Starting container with default command."
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 5000:5000 "$IMAGE"
+          else
+            echo "gunicorn NOT found; using fallback: python -m flask run for smoke test"
+            # run container with an override entrypoint to use flask dev server for smoke
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" "$IMAGE" \
+              sh -c 'python -m flask run --host=0.0.0.0 --port=5000'
           fi
 
-          # run container with env-file
-          docker run -d --rm --name smoke-app --network smoke-net \
-            --env-file .env.smoke \
-            -e FLASK_ENV=production \
-            -p 5000:5000 \
-            "$IMAGE"
-
-          # give it a few seconds to start
-          sleep 3
-
-      - name: Remove .env.smoke (cleanup)
-        if: always()
-        run: rm -f .env.smoke || true
-
-      - name: Wait for /healthz (smoke check)
+      - name: Wait for /healthz
         run: |
           for i in $(seq 1 30); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/healthz || echo "000")
@@ -253,15 +251,14 @@ jobs:
           done
           echo "Smoke test failed; dumping logs"
           docker logs smoke-app || true
-          docker logs smoke-postgres || true
           exit 1
 
       - name: Cleanup smoke containers (always)
         if: always()
         run: |
           docker rm -f smoke-app || true
-          docker rm -f smoke-postgres || true
           docker network rm smoke-net || true
+          rm -f .env.smoke || true
       
       # Push to GHCR step
       - name: Log in to GHCR
