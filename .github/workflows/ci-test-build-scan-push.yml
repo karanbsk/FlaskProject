@@ -181,21 +181,33 @@ jobs:
           docker run -d --name smoke-postgres --network smoke-net -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} postgres:15
           # wait for postgres readiness
           for i in {1..30}; do
-            docker exec smoke-postgres pg_isready -U app -d test && break
+            docker exec smoke-postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" && break
             echo "waiting for smoke postgres..."
             sleep 1
           done
       
+      - name: Write .env.smoke (temporary, restricted)
+        run: |
+          cat > .env.smoke <<EOF
+          DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}
+          FLASK_ENV=production
+          EOF
+          chmod 600 .env.smoke    
+
       - name: Run app container (smoke)
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           docker run -d --name smoke-app --network smoke-net \
-            -e DATABASE_URL="postgresql://app:pass@smoke-postgres:5432/test" \
+            --env-file .env.smoke \           
             -e FLASK_ENV=production \
             -p 5000:5000 \
             "$IMAGE"
           sleep 3
 
+      - name: Remove .env.smoke (cleanup)
+        if: always()
+        run: rm -f .env.smoke || true
+        
       - name: Wait for /healthz (smoke check)
         run: |
           for i in $(seq 1 30); do
