@@ -192,6 +192,29 @@ jobs:
           echo "FLASK_ENV=production" >> .env.smoke
           chmod 600 .env.smoke    
 
+      - name: Quick check (.env.smoke preview masked)
+        run: |
+          echo "----- .env.smoke (masked preview) -----"
+          # print keys with values replaced by ***
+          awk -F= '{print $1"=***"}' .env.smoke
+          echo "----- show non-printable chars (for debugging CRLF/newline issues) -----"
+          # show non-printable characters without printing secret values
+          sed -n '1,20p' .env.smoke | sed -n 'l'    
+          echo "---------------------------------------"
+
+      - name: Validate image string
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          # trim CRLF
+          IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
+          echo "IMAGE='$IMAGE'"
+          # quick regex: allowed chars are lowercase letters, digits, dot, slash, colon, dash and @ and sha256
+          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
+            echo "ERROR: invalid image reference: '$IMAGE'"
+            exit 1
+          fi
+          echo "IMAGE_VALID=1" >> $GITHUB_ENV  
+            
       - name: Run app container (smoke)
         run: |
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
