@@ -55,6 +55,6 @@ RUN useradd --create-home appuser \
  && chown -R appuser:appuser /app /usr/local/lib/python3.11/site-packages
 USER appuser
 
-ENV APP_CONFIG=production FLASK_ENV=production
+ENV APP_CONFIG=production
 EXPOSE 8000
 CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", "--workers", "2"]
