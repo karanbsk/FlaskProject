@@ -194,15 +194,8 @@ jobs:
       - name: Preview .env.smoke (masked) and check for stray chars
         run: |
           echo "----- .env.smoke (masked) -----"
-          awk -F= '{print $1"=***"}' .env.smoke
-          echo "----- non-printable char debug -----"
-          # show chars; look for \r or '\' markers (if present they'll be visible)
-          sed -n '1,20p' .env.smoke | sed -n 'l'
-          # fail fast if backslashes or CRs exist (helps catch earlier problems)
-          if grep -q '\\' .env.smoke || grep -q $'\r' .env.smoke; then
-            echo "ERROR: .env.smoke contains backslashes or CRLF. Aborting."
-            sed -n '1,20p' .env.smoke | sed -n 'l'
-            exit 1
+          cat -v .env.smoke
+          echo "-------------------------------"
           fi
 
       - name: Validate image string
