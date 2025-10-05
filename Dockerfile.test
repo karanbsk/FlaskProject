@@ -2,15 +2,13 @@
 FROM python:3.11-slim AS test
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    POETRY_VIRTUALENVS_CREATE=false
-
+    PIP_NO_CACHE_DIR=1 
+    
 WORKDIR /app
 
 # system deps for psycopg2; adjust as needed
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    gcc libpq-dev build-essential \
+    gcc libpq-dev build-essential postgresql-client \
   && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g 1001 testgroup \
@@ -18,18 +16,20 @@ RUN groupadd -g 1001 testgroup \
 
 COPY requirements.txt /app/requirements.txt
 COPY requirements-dev.txt /app/requirements-dev.txt
+
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements-dev.txt
 
-COPY . /app
+COPY --chown=testuser:testgroup . /app
 
 # Make CI script executable (if present)
 RUN [ -f /app/ci/run-tests.sh ] && chmod +x /app/ci/run-tests.sh || true
 
-RUN chown -R testuser:testgroup /app
-
 USER testuser
+
+EXPOSE 5000
 # default working directory already set
 # default command can be overridden by docker-compose
 CMD ["./ci/run-tests.sh"]
+
+HEALTHCHECK CMD python -c "import sys,urllib.request as u; sys.exit(0) if u.urlopen('http://localhost:5000/healthz').getcode()==200 else sys.exit(1)"

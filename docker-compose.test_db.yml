@@ -23,6 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
+    image: flask-devops-portfolio:test
     env_file: .env.test
     environment:
       - TESTING=1

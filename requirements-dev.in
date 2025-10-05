@@ -1,0 +1,29 @@
+# Include base requirements
+-r requirements.txt
+
+# Security & SAST tools
+bandit
+
+
+# Development utilities
+autopep8
+flake8
+
+# Testing
+pytest
+pytest-cov
+pytest-flask
+pytest-xdist
+tox
+coverage
+
+# Database migration
+Flask-Migrate
+
+# Optional: For database existence checks and creation in tests
+sqlalchemy-utils
+
+# HTML parsing library
+beautifulsoup4
+
+pywin32==311; sys_platform == "win32"

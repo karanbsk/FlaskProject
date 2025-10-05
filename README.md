@@ -54,7 +54,6 @@ Open [http://localhost:5000](http://localhost:5000)
 
 ## 📄 Documentation
 
-- 📌 [Project Snapshot](https://github.com/karanbsk/FlaskProject/blob/main/PROJECT_SNAPSHOT.md) — structure & workflow summary  
 - 📖 [Project Documentation](https://github.com/karanbsk/FlaskProject/blob/main/docs/project_documentation.md) — detailed explanations, enhancements, future plans  
 
 ---

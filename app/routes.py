@@ -151,9 +151,11 @@ def create_user_api():
 # RESET password
 @user_bp.route("/<int:user_id>/reset_password", methods=["POST"])
 def reset_password_api(user_id):
-    data = request.get_json(silent=True) or request.form.to_dict()
-    new_password = data.get("new_password")
-    confirm_password = data.get("confirm_password")
+    data = request.get_json(silent=True) 
+    if data is None:
+        data = request.form.to_dict() or {}
+    new_password = data.get('new_password' or '').strip()
+    confirm_password = data.get('confirm_password' or '').strip()
 
     # Validate
     is_valid, msg = validate_password(new_password, confirm_password)

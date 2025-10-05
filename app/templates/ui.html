@@ -18,63 +18,28 @@
             <td>{{ user.email }}</td>
             <td>{{ user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else '—' }}</td>
             <td>
-                <!-- Reset Password Button -->
-                <button type="button" class="btn btn-sm btn-warning"
-                    data-bs-toggle="modal" data-bs-target="#resetPasswordModal{{ user.id }}">
-                      Reset Password
+                <!-- Shared-modal reset password button -->
+                <button type="button"
+                        class="btn btn-sm btn-warning js-open-reset-modal"
+                        data-bs-toggle="modal"
+                        data-bs-target="#sharedResetPasswordModal"
+                        data-user-id="{{ user.id }}"
+                        data-user-label="{{ user.username }}">
+                  Reset Password
                 </button>
-                    {% if not user.is_root %}
+
+                {% if not user.is_root %}
                   <!-- Delete Button -->
-                      <button class="btn btn-sm btn-danger js-delete-user-btn" 
-                        type="button" 
-                        data-user-id="{{ user.id }}" 
-                        data-confirm="Are you sure you want to delete this user?">
-                        Delete
-                      </button>
-                    {% endif %}
+                  <button class="btn btn-sm btn-danger js-delete-user-btn"
+                          type="button"
+                          data-user-id="{{ user.id }}"
+                          data-confirm="Are you sure you want to delete this user?">
+                    Delete
+                  </button>
+                {% endif %}
             </td>
         </tr>
-
-        <!-- Reset Password Modal -->
-        <div class="modal fade" id="resetPasswordModal{{ user.id }}" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <form class="reset-password-form" action="{{ url_for('user_bp.reset_password_api', user_id=user.id) }}" method="POST">
-                <div class="modal-header">
-                  <h5 class="modal-title">Reset Password for {{ user.username }}</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                  <div class="mb-3">
-                    <label for="newPassword{{ user.id }}">New Password</label>
-                    <input type="password" class="form-control" id="newPassword{{ user.id }}" name="new_password" required>
-                  </div>
-                  <div class="mb-3">
-                    <label for="confirmPassword{{ user.id }}">Confirm Password</label>
-                    <input type="password" class="form-control" id="confirmPassword{{ user.id }}" name="confirm_password" required>
-                  </div>
-
-                  <!-- ✅ Error message inside modal -->
-                  {# show inline modal error only if server did NOT set a global flashed message #}
-                  {% if error_message and open_modal_id == user.id and not get_flashed_messages() %}
-                    <div class="alert alert-danger mt-2">{{ error_message }}</div>
-                      <script>
-                        document.addEventListener("DOMContentLoaded", function() {
-                        var modal = new bootstrap.Modal(document.getElementById("resetPasswordModal{{ user.id }}"));
-                        modal.show();
-                        });
-                      </script>                    
-                  {% endif %}    
-                  </div>         
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-action="reset-modal">Cancel</button>
-                  <button class="btn btn-primary" type="submit">Reset</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
+        {% endfor %}
     </tbody>
 </table>
 
@@ -95,7 +60,7 @@
         <div class="modal-body">
           <div class="mb-3">
             <label>Username</label>
-            <input type="text" class="form-control" name="username" 
+            <input type="text" class="form-control" name="username"
                    value="{{ form_data.username if form_data else '' }}" required>
           </div>
           <div class="mb-3">
@@ -107,7 +72,7 @@
             <label>Password</label>
             <input type="password" class="form-control" name="password" required>
           </div>
-          <div class="mb-3">  
+          <div class="mb-3">
             <label>Confirm Password</label>
             <input type="password" class="form-control" name="confirm_password" required>
           </div>
@@ -122,15 +87,15 @@
                     new bootstrap.Modal(el).show();
                   } else {
                     setTimeout(function(){
-                    var el2 = document.getElementById("createUserModal");
-                  if (el2 && window.bootstrap && typeof window.bootstrap.Modal === 'function') {
-                    new bootstrap.Modal(el2).show();
-                    }
-                  }, 50);
+                      var el2 = document.getElementById("createUserModal");
+                      if (el2 && window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+                        new bootstrap.Modal(el2).show();
+                      }
+                    }, 50);
                   }
                 })();
               </script>
-            {% endif %}
+          {% endif %}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-action="reset-modal">Cancel</button>
@@ -139,6 +104,42 @@
       </form>
     </div>
   </div>
+</div>
 
+<!-- Shared Reset Password Modal (single DOM modal) -->
+<div class="modal fade" id="sharedResetPasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="sharedResetForm" class="reset-password-form" method="POST" autocomplete="off" novalidate>
+        <input type="hidden" name="target_user_id" id="sharedResetUserId" value="">
+        <div class="modal-header">
+          <h5 class="modal-title" id="sharedResetTitle">Reset Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="sharedResetInlineErrors" class="mb-2"></div>
+
+          <div class="mb-3">
+            <label for="sharedNewPassword" class="form-label">New Password</label>
+            <input type="password" class="form-control" id="sharedNewPassword" name="new_password"
+                   autocomplete="new-password" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="sharedConfirmPassword" class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" id="sharedConfirmPassword" name="confirm_password"
+                   autocomplete="new-password" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-action="reset-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 {% endblock %}

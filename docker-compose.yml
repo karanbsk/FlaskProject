@@ -6,7 +6,7 @@ services:
       target: prod   # Use multi-stage prod target in Dockerfile 	
       dockerfile: Dockerfile
       
-    image: flaskapp:prod
+    image: flask-devops-portfolio:latest
     ports:
       - "8000:8000"  # Expose production port
     environment:
