@@ -56,5 +56,5 @@ RUN useradd --create-home appuser \
 USER appuser
 
 ENV APP_CONFIG=production
-
+EXPOSE 8000
 CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", "--workers", "2"]

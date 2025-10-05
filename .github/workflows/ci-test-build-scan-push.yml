@@ -231,18 +231,18 @@ jobs:
           docker run --rm --entrypoint "" "$IMAGE" sh -c 'command -v gunicorn && echo "FOUND_GUNICORN" || echo "NO_GUNICORN"' > /tmp/gunicorn_check || true
           if grep -q "FOUND_GUNICORN" /tmp/gunicorn_check; then
             echo "gunicorn found in image. Starting container with default command."
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 5000:5000 "$IMAGE"
+            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 8000:8000 "$IMAGE"
           else
             echo "gunicorn NOT found; using fallback: python -m flask run for smoke test"
             # run container with an override entrypoint to use flask dev server for smoke
             docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" "$IMAGE" \
-              sh -c 'python -m flask run --host=0.0.0.0 --port=5000'
+              sh -c 'python -m flask run --host=0.0.0.0 --port=8000'
           fi
 
       - name: Wait for /healthz
         run: |
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/healthz || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/healthz || echo "000")
             echo "health: $STATUS"
             if [ "$STATUS" = "200" ]; then
               echo "healthy" && exit 0
