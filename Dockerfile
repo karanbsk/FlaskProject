@@ -15,17 +15,15 @@ COPY pyproject.toml requirements.txt /src/
 
 RUN python -m pip install --upgrade pip setuptools wheel && \
     python -m pip wheel --wheel-dir=/wheels -r requirements.txt && \
-    python -m pip install --no-index --find-links=/wheels -r requirements.txt --target=/install &&\
-   rm -rf /wheels
+    python -m pip install --no-index --find-links=/wheels -r requirements.txt --target=/install && \
+    rm -rf /wheels
 
-COPY . /src 
+COPY . /src
 
 # ----- runtime stage using slim-bullseye -----
 FROM python:3.11-slim AS prod
 WORKDIR /app
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # IMPORTANT: combine update+purge in single RUN (avoids misconfig DS017)
 # runtime: remove sqlite if present, upgrade openssl/libssl, cleanup
@@ -42,18 +40,12 @@ RUN if [ -d /usr/local/lib/python3.11/lib-dynload ]; then \
     fi
 
 
-# RUN rm -rf /usr/local/lib/python3.11/site-packages/*
+RUN rm -rf /usr/local/lib/python3.11/site-packages/*
 
 # Copy installed python packages (from builder)
 COPY --from=builder /install /usr/local/lib/python3.11/site-packages
-
-RUN python -m pip install --upgrade pip setuptools wheel && \
-    python -m pip install gunicorn --no-cache-dir --target=/usr/local/lib/python3.11/site-packages && \
-    python -m pip uninstall -y pip setuptools || true && \
-    rm -rf /usr/local/lib/python3.11/site-packages/pip* /usr/local/lib/python3.11/site-packages/setuptools* \
-           /usr/local/lib/python3.11/site-packages/distutils* /usr/local/bin/pip* /usr/local/bin/easy_install* || true && \
-    apt-get purge -y --auto-remove && apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN ln -s /usr/local/lib/python3.11/site-packages/bin/gunicorn /usr/local/bin/gunicorn && \
+    chmod +x /usr/local/bin/gunicorn
 
 # Copy app
 COPY  --chown=appuser:appuser --from=builder /src/ /app/
