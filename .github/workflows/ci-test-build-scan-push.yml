@@ -205,7 +205,7 @@ jobs:
           fi
 
           # run container with env-file
-          docker run -d --rm --name smoke-app --network smoke-net \
+          docker run -d --name smoke-app --network smoke-net \
             --env-file .env.smoke \
             -e FLASK_ENV=production \
             -p 8000:8000 \
