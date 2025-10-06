@@ -191,62 +191,28 @@ jobs:
           echo 'DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}' >> .env.smoke
           chmod 600 .env.smoke
 
-      - name: Preview .env.smoke (masked) and check for stray chars
-        run: |
-          echo "----- .env.smoke (masked) -----"
-          cat -v .env.smoke
-          echo "-------------------------------"
-          
-
-      - name: Validate image string
-        run: |
-          IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
-          echo "IMAGE='$IMAGE'"
-          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
-            echo "ERROR: invalid image reference: '$IMAGE'"
-            exit 1
-          fi
-          echo "IMAGE_VALID=1" >> $GITHUB_ENV
-
      # --- Insert into smoke job ---
-      - name: Inspect runtime and start app (use python -m gunicorn if wrapper missing)
+      - name: Run app container (smoke)
         run: |
-          set -euo pipefail
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          # sanitize/trimming
           IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
           echo "Running smoke with image: $IMAGE"
 
-          # Safety: ensure env file exists and contains DB host smoke-postgres
-          if [ ! -f .env.smoke ]; then
-            echo "ERROR: .env.smoke missing"; exit 1
+          # sanity-check image format
+          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
+            echo "ERROR: invalid image reference: '$IMAGE'"; exit 1
           fi
 
-          # Probe image to find python path (non-destructive)
-          docker run --rm --entrypoint "" "${IMAGE}" sh -c '\
-            echo "PYTHON_PATH=$(command -v python || command -v python3 || true)"; \
-            GUN=$(command -v gunicorn || true); \
-            echo "GUNICORN_PATH=$GUN" ' > /tmp/runtime_probe || true
+          # run container with env-file
+          docker run -d --rm --name smoke-app --network smoke-net \
+            --env-file .env.smoke \
+            -e FLASK_ENV=production \
+            -p 8000:8000 \
+            "$IMAGE"
 
-          # Read values
-          PYTHON_PATH=$(sed -n 's/^PYTHON_PATH=\(.*\)$/\1/p' /tmp/runtime_probe || true)
-          GUNICORN_PATH=$(sed -n 's/^GUNICORN_PATH=\(.*\)$/\1/p' /tmp/runtime_probe || true)
-
-          echo "Detected PYTHON_PATH='$PYTHON_PATH' GUNICORN_PATH='${GUNICORN_PATH:-<empty>}'"
-
-          # Choose start command: prefer console binary, else python -m gunicorn, else flask
-          if [ -n "$GUNICORN_PATH" ]; then
-            echo "Using console wrapper: $GUNICORN_PATH"
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke -p 8000:8000 "$IMAGE" "$GUNICORN_PATH" "wsgi:app" "-b" "0.0.0.0:8000" "--workers" "2"
-          elif [ -n "$PYTHON_PATH" ]; then
-            echo "Wrapper missing — running python -m gunicorn via $PYTHON_PATH"
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" -p 8000:8000 "$IMAGE" \
-              sh -c "'$PYTHON_PATH' -m gunicorn wsgi:app -b 0.0.0.0:8000 --workers 2"
-          else
-            echo "No python in image — falling back to flask dev server (last resort)"
-            docker run -d --name smoke-app --network smoke-net --env-file .env.smoke --entrypoint "" -p 8000:8000 "$IMAGE" \
-              sh -c 'python -m flask run --host=0.0.0.0 --port=8000'
-          fi
+          # give it a few seconds to start
+          sleep 3
 
       - name: Wait for /healthz
         run: |
@@ -268,13 +234,13 @@ jobs:
           docker network rm smoke-net || true
           rm -f .env.smoke || true
             
-            # Push to GHCR step
-            - name: Log in to GHCR
-              uses: docker/login-action@v2
-              with:
-                registry: ghcr.io
-                username: ${{ github.actor }}
-                password: ${{ secrets.GITHUB_TOKEN }}
+      # Push to GHCR step
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push image to GHCR
         id: push
