@@ -46,7 +46,8 @@ RUN rm -rf /usr/local/lib/python3.11/site-packages/*
 COPY --from=builder /install /usr/local/lib/python3.11/site-packages
 RUN ln -s /usr/local/lib/python3.11/site-packages/bin/gunicorn /usr/local/bin/gunicorn && \
     chmod +x /usr/local/bin/gunicorn
-
+RUN ln -s /usr/local/lib/python3.11/site-packages/bin/flask /usr/local/bin/flask || true && \
+    chmod +x /usr/local/bin/flask || true
 # Copy app
 COPY  --chown=appuser:appuser --from=builder /src/ /app/
 
