@@ -224,8 +224,8 @@ jobs:
           # Example using your image to run alembic (adjust the command to your project)
           IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           docker run --rm --network smoke-net --env-file .env.smoke "$IMAGE" \
-            sh -c "alembic upgrade head" || true
-
+            sh -c "flask db upgrade" || true
+      
       # --- Insert into smoke job ---
       - name: Run app container (smoke)
         run: |
