@@ -24,13 +24,6 @@ def create_app():
     app = Flask(__name__,template_folder=template_path, static_folder=static_path, instance_relative_config=False)
     app.config.from_object(config_class)
     
-    if config_class.ENV_NAME == "Production":
-        if not os.getenv("SQLALCHEMY_DATABASE_URI"):
-            # Fallback for CI/CD environments without real DB
-            print(" No SQLALCHEMY_DATABASE_URI found. Using SQLite for CI.")
-            config_class.SQLALCHEMY_DATABASE_URI = "sqlite:///ci_test.db"
-        else:
-            config_class.init_db_uri() # Ensure DB URI is set for Production    
     
     app.config.from_object(get_config())
      
