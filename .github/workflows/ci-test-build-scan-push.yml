@@ -190,7 +190,7 @@ jobs:
       
       - name: Create .env.smoke (robust)
         run: |
-          echo 'DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}' >> .env.smoke
+          echo 'SQLALCHEMY_DATABASE_URI=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}' >> .env.smoke
           chmod 600 .env.smoke
 
       - name: Start smoke Postgres and generate .env.smoke
