@@ -15,25 +15,22 @@ migrate = Migrate()
 def create_app():
     
     config_class = get_config()
-    
+        
     base_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(base_dir, 'templates')
     static_path = os.path.join(base_dir, 'static')
-    
+             
+    #Initialize Flask App
     app = Flask(__name__,template_folder=template_path, static_folder=static_path, instance_relative_config=False)
     app.config.from_object(config_class)
-
-    uri = config_class.init_db_uri()
-    if not uri:
-        # non-prod fallback
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///ci_test.db"
-    else:
-        app.config["SQLALCHEMY_DATABASE_URI"] = uri
-        
     
-    
-             
-    #Initialize Flask App    
+    if config_class.ENV_NAME == "Production":
+        if not os.getenv("SQLALCHEMY_DATABASE_URI"):
+            # Fallback for CI/CD environments without real DB
+            print(" No SQLALCHEMY_DATABASE_URI found. Using SQLite for CI.")
+            config_class.SQLALCHEMY_DATABASE_URI = "sqlite:///ci_test.db"
+        else:
+            config_class.init_db_uri() # Ensure DB URI is set for Production    
     
     app.config.from_object(get_config())
      
