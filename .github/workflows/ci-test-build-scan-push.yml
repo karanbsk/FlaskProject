@@ -212,20 +212,32 @@ jobs:
             sleep 1
           done
 
-      - name: (optional) Run DB migrations for smoke (uncomment if you use migrations)
-        if: ${{ always() }}
-        run: |
-          set -euo pipefail
-          # Example: run alembic inside a short-lived container that has alembic / code,
-          # or run alembic via your built image.
-          # Replace with your migration command (alembic, flask db upgrade, etc.).
-          # If migrations are not required for smoke test, remove this step.
+      # - name: (optional) Run DB migrations for smoke (uncomment if you use migrations)
+      #   if: ${{ always() }}
+      #   run: |
+      #     set -euo pipefail
+      #     # Example: run alembic inside a short-lived container that has alembic / code,
+      #     # or run alembic via your built image.
+      #     # Replace with your migration command (alembic, flask db upgrade, etc.).
+      #     # If migrations are not required for smoke test, remove this step.
 
-          # Example using your image to run alembic (adjust the command to your project)
-          IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          docker run --rm --network smoke-net --env-file .env.smoke "$IMAGE" \
-            sh -c "flask db upgrade" || true
+      #     # Example using your image to run alembic (adjust the command to your project)
+      #     IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+      #     docker run --rm --network smoke-net --env-file .env.smoke "$IMAGE" \
+      #       sh -c "flask db upgrade" || true
       
+      
+      - name: Run Flask DB migrations for smoke
+        env:
+          FLASK_APP: wsgi.py
+          DATABASE_URL: postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}
+        run: |
+          # Show effective DATABASE_URL (masked in GH logs by Actions)
+          echo "Running flask db upgrade against $DATABASE_URL"
+
+          # Apply migrations
+          flask db upgrade
+
       # --- Insert into smoke job ---
       - name: Run app container (smoke)
         run: |
