@@ -44,8 +44,7 @@ def create_app():
                 # build_postgres_uri imported if you want to prefer POSTGRES_* in dev too
                 app.config["SQLALCHEMY_DATABASE_URI"] = (
                     build_postgres_uri() 
-                    or f"sqlite:///{os.path.join(basedir,
-                    'dev_database.db')}"
+                    or f"sqlite:///{os.path.join(basedir,'dev_database.db')}"
                 )
     except ValueError as ve:
         app.logger.error("Configuration validation failed: %s", ve)
