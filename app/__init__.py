@@ -15,8 +15,11 @@ migrate = Migrate()
 def create_app():
     
     config_class = get_config()
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(base_dir, 'templates')
     static_path = os.path.join(base_dir, 'static')
+    
     app = Flask(__name__,template_folder=template_path, static_folder=static_path, instance_relative_config=False)
     app.config.from_object(config_class)
 
@@ -27,7 +30,7 @@ def create_app():
     else:
         app.config["SQLALCHEMY_DATABASE_URI"] = uri
         
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
     
              
     #Initialize Flask App    
