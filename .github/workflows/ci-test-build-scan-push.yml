@@ -106,6 +106,8 @@ jobs:
   build-and-push:
     name: Build → Scan → SBOM → Smoke → Push
     runs-on: ubuntu-latest
+    env:
+      APP_CONFIG: "production"
     needs: test
     if: needs.test.result == 'success'
     steps:
