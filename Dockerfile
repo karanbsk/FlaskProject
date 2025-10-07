@@ -13,18 +13,17 @@ RUN apt-get update \
 
 COPY pyproject.toml requirements.txt /src/
 
-RUN python -m pip install --upgrade pip setuptools wheel
-
-RUN python -m pip wheel --wheel-dir=/wheels -r requirements.txt
-
-RUN python -m pip install --no-index --find-links=/wheels -r requirements.txt --target=/install \
- && rm -rf /wheels
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    python -m pip wheel --wheel-dir=/wheels -r requirements.txt && \
+    python -m pip install --no-index --find-links=/wheels -r requirements.txt --target=/install && \
+    rm -rf /wheels
 
 COPY . /src
 
 # ----- runtime stage using slim-bullseye -----
 FROM python:3.11-slim AS prod
 WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
 # IMPORTANT: combine update+purge in single RUN (avoids misconfig DS017)
 # runtime: remove sqlite if present, upgrade openssl/libssl, cleanup
@@ -40,11 +39,15 @@ RUN if [ -d /usr/local/lib/python3.11/lib-dynload ]; then \
       rm -f /usr/local/lib/python3.11/lib-dynload/_sqlite3*.so || true; \
     fi
 
+
 RUN rm -rf /usr/local/lib/python3.11/site-packages/*
 
 # Copy installed python packages (from builder)
 COPY --from=builder /install /usr/local/lib/python3.11/site-packages
-
+RUN ln -s /usr/local/lib/python3.11/site-packages/bin/gunicorn /usr/local/bin/gunicorn && \
+    chmod +x /usr/local/bin/gunicorn
+RUN ln -s /usr/local/lib/python3.11/site-packages/bin/flask /usr/local/bin/flask || true && \
+    chmod +x /usr/local/bin/flask || true
 # Copy app
 COPY  --chown=appuser:appuser --from=builder /src/ /app/
 
@@ -56,5 +59,5 @@ RUN useradd --create-home appuser \
 USER appuser
 
 ENV APP_CONFIG=production
-
+EXPOSE 8000
 CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", "--workers", "2"]

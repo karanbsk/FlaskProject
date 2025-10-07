@@ -25,7 +25,7 @@ jobs:
       APP_CONFIG: "testing"
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         # supply values from repository secrets (add them in Settings → Secrets)
         env:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
@@ -104,8 +104,10 @@ jobs:
           retention-days: 90
 
   build-and-push:
-    name: Build and Push image (GHCR)
+    name: Build → Scan → SBOM → Smoke → Push
     runs-on: ubuntu-latest
+    env:
+      APP_CONFIG: production
     needs: test
     if: needs.test.result == 'success'
     steps:
@@ -137,6 +139,7 @@ jobs:
       - name: Confirm image present locally
         run: docker images --format '{{.Repository}}:{{.Tag}}\t{{.Size}}' | grep "${{ env.IMAGE_NAME }}" || true
 
+      # Triyv scan step (fail if CRITICAL/HIGH found)
       - name: Scan prod image with Trivy (JSON output)
         uses: aquasecurity/trivy-action@master
         id: trivy
@@ -155,6 +158,145 @@ jobs:
           name: trivy-report-prod.json
           path: trivy-report-prod.json  
 
+      # SBOM generation step
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM (CycloneDX JSON)
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          syft "$IMAGE" -o cyclonedx-json > sbom-cyclonedx.json
+      
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom-cyclonedx.json
+      
+      # Smoke Test: ephemeral Postgres + run container
+      - name: Create docker network for smoke
+        run: docker network create smoke-net || true
+
+      # - name: Start ephemeral Postgres for smoke
+      #   run: |
+      #     docker run -d --name smoke-postgres --network smoke-net -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} postgres:15
+      #     # wait for postgres readiness
+      #     for i in {1..30}; do
+      #       docker exec smoke-postgres pg_isready -U "${{ secrets.POSTGRES_USER }}" -d "${{ secrets.POSTGRES_DB }}" && break
+      #       echo "waiting for smoke postgres..."
+      #       sleep 1
+      #     done
+      
+      - name: Create .env.smoke (robust)
+        run: |
+          echo 'DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@smoke-postgres:5432/${{ secrets.POSTGRES_DB }}' >> .env.smoke
+          echo 'POSTGRES_USER=${{ secrets.POSTGRES_USER }}' >> .env.smoke
+          echo 'POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}' >> .env.smoke
+          echo 'POSTGRES_DB=${{ secrets.POSTGRES_DB }}' >> .env.smoke
+          echo 'POSTGRES_HOST=smoke-postgres' >> .env.smoke
+          echo 'POSTGRES_PORT=5432' >> .env.smoke
+          echo 'SECRET_KEY=${{ secrets.SECRET_KEY }}' >>.env.smoke
+          echo 'APP_CONFIG=production' >> .env.smoke
+          echo 'FLASK_APP=wsgi.py' >> .env.smoke
+          chmod 600 .env.smoke
+      
+      - name: Show .env.smoke (debug)
+        run: cat .env.smoke
+
+      - name: Start smoke Postgres and generate .env.smoke
+        run: |
+          set -euo pipefail
+
+          # ensure network
+          docker network create smoke-net || true
+
+          # start ephemeral Postgres for smoke test
+          docker run -d --name smoke-postgres --network smoke-net \
+            -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+            -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+            postgres:15-alpine
+
+          # wait for Postgres to be ready (use pg_isready)
+          for i in $(seq 1 30); do
+            docker run --rm --network smoke-net postgres:15-alpine pg_isready -h smoke-postgres -U ${{ secrets.POSTGRES_USER }} && break
+            echo "waiting for postgres..."
+            sleep 1
+          done
+
+      - name: Run Flask DB migrations for smoke (ephemeral python container)
+        env:
+          FLASK_APP: wsgi.py
+        run: |
+          set -euo pipefail
+
+          echo "Running flask db upgrade inside ephemeral python container (using repo source)"
+          # Ensure .env.smoke exists (created earlier)
+          if [ ! -f .env.smoke ]; then
+            echo ".env.smoke missing; aborting"
+            exit 1
+          fi
+
+          # Use python image, mount repo, install deps and run migrations
+          docker run --rm --network smoke-net \
+            -v "$PWD":/app -w /app \
+            --env-file .env.smoke \
+            -e FLASK_APP="$FLASK_APP" \
+            python:3.11-slim \
+            sh -c "\
+              apt-get update >/dev/null && apt-get install -y --no-install-recommends gcc build-essential libpq-dev >/dev/null || true && \
+              python -m pip install --upgrade pip setuptools wheel >/dev/null && \
+              python -m pip install --no-cache-dir -r requirements.txt >/dev/null && \
+              python -m pip install --no-cache-dir -e . >/dev/null && \
+              echo 'Dependencies installed; running flask db upgrade' && \
+              flask db upgrade"
+
+
+      # --- Insert into smoke job ---
+      - name: Run app container (smoke)
+        run: |
+          IMAGE="${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          # sanitize/trimming
+          IMAGE=$(printf "%s" "$IMAGE" | tr -d '\r\n')
+          echo "Running smoke with image: $IMAGE"
+
+          # sanity-check image format
+          if ! printf "%s" "$IMAGE" | grep -Eq '^[a-z0-9./:-]+(@sha256:[0-9a-f]{64})?$'; then
+            echo "ERROR: invalid image reference: '$IMAGE'"; exit 1
+          fi
+
+          # run container with env-file
+          docker run -d --name smoke-app --network smoke-net \
+            --env-file .env.smoke \
+            -e FLASK_ENV=production \
+            -p 8000:8000 \
+            "$IMAGE"
+
+          # give it a few seconds to start
+          sleep 3
+
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/healthz || echo "000")
+            echo "health: $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "healthy" && exit 0; fi
+            sleep 2
+          done
+          echo "Smoke failed; show container logs"
+          docker logs smoke-app || true
+          exit 1
+
+      - name: Cleanup smoke (always)
+        if: always()
+        run: |
+          docker rm -f smoke-app || true
+          docker rm -f smoke-postgres || true
+          docker network rm smoke-net || true
+          rm -f .env.smoke || true
+            
+      # Push to GHCR step
       - name: Log in to GHCR
         uses: docker/login-action@v2
         with:
@@ -163,15 +305,40 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push image to GHCR
+        id: push
         # only runs if previous steps succeeded (tests + trivy)
         run: |
           docker push ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           docker push ${{ env.IMAGE_LATEST }}
 
-      - name: Display pushed image tags
-        run: echo "Prod image built, scanned and pushed ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+      - name: Get pushed image digest
+        id: digest
+        run: |
+          # fetch digest for the exact image
+          DIGEST=$(docker manifest inspect ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | jq -r '.[0].Descriptor.digest' || true)
+          if [ -z "$DIGEST" ]; then
+            # fall back to docker inspect repo digests
+            DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} 2>/dev/null | cut -d'@' -f2 || true)
+          fi
+          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_OUTPUT
+          echo "IMAGE_WITH_DIGEST=${{ env.IMAGE_NAME }}@${DIGEST}" > image-digest.txt
+          cat image-digest.txt
 
-    # Step 7: Delete older images to save space (keep only the latest 2)
+      - name: Upload image-digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digest
+          path: image-digest.txt
+
+      # Optional: sign image with cosign (commented; enable when you have COSIGN_KEY)
+      # - name: Sign image with cosign
+      #   env:
+      #     COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+      #   run: |
+      #     echo "${{ secrets.COSIGN_KEY }}" > cosign.key
+      #     cosign sign --key cosign.key ${{ steps.digest.outputs.IMAGE_WITH_DIGEST }}
+
+  # Delete older images to save space (keep only the latest 2)
   ghcr-cleanup:
     name: Cleanup old GHCR package versions
     runs-on: ubuntu-latest

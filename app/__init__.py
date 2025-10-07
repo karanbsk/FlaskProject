@@ -19,9 +19,9 @@ def create_app():
 
     
     if config_class.ENV_NAME == "Production":
-        if not os.getenv("PROD_DATABASE_URI"):
+        if not os.getenv("SQLALCHEMY_DATABASE_URI"):
             # Fallback for CI/CD environments without real DB
-            print(" No PROD_DATABASE_URI found. Using SQLite for CI.")
+            print(" No SQLALCHEMY_DATABASE_URI found. Using SQLite for CI.")
             config_class.SQLALCHEMY_DATABASE_URI = "sqlite:///ci_test.db"
         else:
             config_class.init_db_uri() # Ensure DB URI is set for Production
@@ -72,10 +72,12 @@ def create_app():
     #Import models, routes, blueprints
     from app.blueprints.main import main
     from app.routes import user_bp
+    from app.routes import health_bp
     
     #Blueprints
     app.register_blueprint(main)
     app.register_blueprint(user_bp)
+    app.register_blueprint(health_bp)
     
     @app.context_processor
     def inject_env():

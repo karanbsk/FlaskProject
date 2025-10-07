@@ -135,7 +135,7 @@ def dashboard():
     from sqlalchemy import text
 
     # App environment
-    env_name = current_app.config.get("APP_CONFIG", "development")
+    env_name = current_app.config.get("ENV_NAME") or os.getenv("APP_CONFIG", "development")
 
     # Server time
     ist = ZoneInfo('Asia/Kolkata')
@@ -184,7 +184,8 @@ def dashboard():
 
     # API health checks
     api_health = {}
-    base_url = os.getenv("APP_BASE_URL", "http://localhost:5000")
+    port = 8000 if str(env_name).lower().startswith("prod") else 5000
+    base_url = os.getenv("APP_BASE_URL", f"http://localhost:{port}")
     endpoints = ["/", "/ui", "/api/users"]
     for ep in endpoints:
         try:
@@ -214,7 +215,7 @@ def dashboard_data():
     from sqlalchemy import text
     from zoneinfo import ZoneInfo
 
-    env_name = current_app.config.get("APP_CONFIG", "development")
+    env_name = current_app.config.get("ENV_NAME") or os.getenv("APP_CONFIG", "development")
 
     ist = ZoneInfo('Asia/Kolkata')
     server_time = datetime.now(ist).strftime('%Y-%m-%d %H:%M:%S')
@@ -247,7 +248,8 @@ def dashboard_data():
     }
 
     api_health = {}
-    base_url = os.getenv("APP_BASE_URL", "http://localhost:5000")
+    port = 8000 if str(env_name).lower().startswith("prod") else 5000
+    base_url = os.getenv("APP_BASE_URL", f"http://localhost:{port}")
     for ep in ["/", "/ui", "/api/users"]:
         try:
             r = requests.get(base_url + ep, timeout=2)

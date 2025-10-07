@@ -12,9 +12,31 @@ from flask import current_app
 
 user_bp = Blueprint('user_bp', __name__, url_prefix='/api/users')
 
+health_bp = Blueprint("health", __name__)
+
 EMAIL_RE = re.compile(r"[^@]+@[^@]+\.[^@]+")
 USERNAME_RE = re.compile(r'^[A-Za-z0-9._-]{3,50}$')  # allow only safe chars
 SUSPICIOUS_USERNAME_RE = re.compile(r"(?:'|--|;|\bOR\b|\bAND\b|\bUNION\b|\bSELECT\b)", re.I)
+
+@health_bp.route("/healthz", methods=["GET"])
+def healthz():
+    return jsonify(status="ok"), 200
+
+@health_bp.route("/ready", methods=["GET"])
+def ready():
+    # readiness: quick DB check
+    db = None
+    from sqlalchemy import text
+    try:
+        # if you use Flask-SQLAlchemy: db = current_app.extensions['sqlalchemy'].db
+        # fallback: use current_app.config['SQLALCHEMY_DATABASE_URI'] indirectly via session
+        session = current_app.extensions.get("sqlalchemy").db.session
+        session.execute(text("SELECT 1"))
+        return jsonify(status="ready"), 200
+    except Exception as e:
+        current_app.logger.warning("Readiness check failed: %s", e)
+        return jsonify(status="not ready", error=str(e)), 503
+    
 
 # GET all users
 @user_bp.route("", methods=['GET'])
