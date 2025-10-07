@@ -91,7 +91,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     ENV_NAME = "Production"
-    SQLALCHEMY_DATABASE_URI = None # 
+    SQLALCHEMY_DATABASE_URI = None 
     
     @classmethod
     def init_db_uri(cls):
@@ -100,6 +100,8 @@ class ProductionConfig(Config):
             raise ValueError("Postgres URI must be set in Production!") # Ensure DB URI is set
          if not os.getenv("SECRET_KEY"):
             raise ValueError("Production SECRET_KEY must be set as an environment variable!")
+         return cls.SQLALCHEMY_DATABASE_URI
+
 """
 Configuration Loader:
 - Reads APP_CONFIG from environment (default: development)
