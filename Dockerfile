@@ -56,8 +56,12 @@ RUN rm -rf requirements* .dockerignore* pyproject.toml /app/tests/ pytest*
 # Optional: create non-root user & fix perms
 RUN useradd --create-home appuser \
  && chown -R appuser:appuser /app /usr/local/lib/python3.11/site-packages
+
+RUN chmod +x /app/entrypoint.sh
+
 USER appuser
 
-ENV APP_CONFIG=production
+#ENV APP_CONFIG=production
+ENTRYPOINT ["/app/entrypoint.sh"]
 EXPOSE 8000
 CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8000", "--workers", "2"]

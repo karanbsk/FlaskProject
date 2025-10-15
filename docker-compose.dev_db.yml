@@ -19,8 +19,8 @@ services:
       - db
     volumes:
       - .:/app  # Code changes reflected immediately
-      - ./templates:/app/templates
-      - ./static:/app/static
+      - ./app/templates:/app/templates
+      - ./app/static:/app/static
     networks:
       - flask_network
 

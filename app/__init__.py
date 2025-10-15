@@ -2,7 +2,7 @@
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from config import get_config, build_postgres_uri, mask_db_uri, ProductionConfig, basedir
+from config import get_config, build_postgres_uri, mask_db_uri, ProductionConfig, basedir, get_config_name
 from flask_migrate import Migrate
 import logging
 
@@ -28,11 +28,12 @@ def create_app():
         instance_relative_config=False
         )
     app.config.from_object(config_class)
-    
+    #config_name = app.config['APP_CONFIG'] 
+
     try:
         is_prod = (
             config_class is ProductionConfig
-            or str(app.config.get("ENV_NAME", "")).lower().startswith("prod")
+            or str(app.config.get("APP_CONFIG", "")).lower().startswith("prod")
         )
         if is_prod:
             uri = config_class.init_db_uri()
@@ -64,7 +65,20 @@ def create_app():
         "SQLAlchemy URI set to %s", 
         mask_db_uri(app.config.get('SQLALCHEMY_DATABASE_URI'))
         )
+    
+    app.config.setdefault("ENV_NAME", getattr(config_class, "ENV_NAME", "development"))
+    app.config.setdefault("SHOW_DEV_BANNER", getattr(config_class, "SHOW_DEV_BANNER", False))
+
+    # Expose to templates explicitly
+    app.jinja_env.globals["ENV_NAME"] = app.config['ENV_NAME']
+    app.jinja_env.globals["SHOW_DEV_BANNER"] = app.config['SHOW_DEV_BANNER']   
      
+    app.logger.info(
+        "Starting app with APP_CONFIG=%s, ENV_NAME=%s, SHOW_DEV_BANNER=%s",
+        app.config.get('APP_CONFIG'),
+        app.config.get('ENV_NAME'),
+        app.config.get('SHOW_DEV_BANNER'),
+    )
     app.jinja_env.auto_reload = app.debug  
     # Force Flask/Jinja template auto-reload
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -74,6 +88,7 @@ def create_app():
         def clear_jinja_cache():
             app.jinja_env.cache = {}
     
+
     
     # Set up logging
     log_level = app.config.get("LOG_LEVEL", "INFO")
