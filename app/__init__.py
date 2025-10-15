@@ -2,7 +2,7 @@
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from config import get_config, build_postgres_uri, mask_db_uri
+from config import get_config, build_postgres_uri, mask_db_uri, ProductionConfig, basedir, get_config_name
 from flask_migrate import Migrate
 import logging
 
@@ -15,38 +15,70 @@ migrate = Migrate()
 def create_app():
     
     config_class = get_config()
-    
-
-    
-    if config_class.ENV_NAME == "Production":
-        if not os.getenv("SQLALCHEMY_DATABASE_URI"):
-            # Fallback for CI/CD environments without real DB
-            print(" No SQLALCHEMY_DATABASE_URI found. Using SQLite for CI.")
-            config_class.SQLALCHEMY_DATABASE_URI = "sqlite:///ci_test.db"
-        else:
-            config_class.init_db_uri() # Ensure DB URI is set for Production
         
     base_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(base_dir, 'templates')
     static_path = os.path.join(base_dir, 'static')
              
     #Initialize Flask App
-    app = Flask(__name__,template_folder=template_path, static_folder=static_path, instance_relative_config=False)
+    app = Flask(
+        __name__,
+        template_folder=template_path,
+        static_folder=static_path,
+        instance_relative_config=False
+        )
     app.config.from_object(config_class)
-    
-    
-    app.config.from_object(get_config())
-     
-    
-    uri = os.environ.get("DATABASE_URL") or build_postgres_uri()
-    if uri:
-        app.config['SQLALCHEMY_DATABASE_URI'] = uri
-    else:
-        # Keep whatever the config class already set (sqlite fallback, etc).
-        app.logger.debug("No explicit DB URI found; leaving SQLALCHEMY_DATABASE_URI from config object.")
+    #config_name = app.config['APP_CONFIG'] 
 
-    app.logger.info("SQLAlchemy URI set to %s", mask_db_uri(app.config.get('SQLALCHEMY_DATABASE_URI')))
+    try:
+        is_prod = (
+            config_class is ProductionConfig
+            or str(app.config.get("APP_CONFIG", "")).lower().startswith("prod")
+        )
+        if is_prod:
+            uri = config_class.init_db_uri()
+            if uri:
+                app.config["SQLALCHEMY_DATABASE_URI"] = uri
+        else:
+            # non-prod: ensure app.config has a usable DB URI; fallback to sqlite dev DB if absent
+            if not app.config.get("SQLALCHEMY_DATABASE_URI"):
+                # build_postgres_uri imported if you want to prefer POSTGRES_* in dev too
+                app.config["SQLALCHEMY_DATABASE_URI"] = (
+                    build_postgres_uri() 
+                    or f"sqlite:///{os.path.join(basedir,'dev_database.db')}"
+                )
+    except ValueError as ve:
+        app.logger.error("Configuration validation failed: %s", ve)
+        raise
+    except Exception as e:
+        app.logger.exception("Unexpected error while initializing the application")
+        raise RuntimeError("Application initialization failed") from e
+    
+    #app.config.from_object(get_config())
      
+    
+    env_uri = os.environ.get("DATABASE_URL") 
+    if env_uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = env_uri
+    
+    app.logger.info(
+        "SQLAlchemy URI set to %s", 
+        mask_db_uri(app.config.get('SQLALCHEMY_DATABASE_URI'))
+        )
+    
+    app.config.setdefault("ENV_NAME", getattr(config_class, "ENV_NAME", "development"))
+    app.config.setdefault("SHOW_DEV_BANNER", getattr(config_class, "SHOW_DEV_BANNER", False))
+
+    # Expose to templates explicitly
+    app.jinja_env.globals["ENV_NAME"] = app.config['ENV_NAME']
+    app.jinja_env.globals["SHOW_DEV_BANNER"] = app.config['SHOW_DEV_BANNER']   
+     
+    app.logger.info(
+        "Starting app with APP_CONFIG=%s, ENV_NAME=%s, SHOW_DEV_BANNER=%s",
+        app.config.get('APP_CONFIG'),
+        app.config.get('ENV_NAME'),
+        app.config.get('SHOW_DEV_BANNER'),
+    )
     app.jinja_env.auto_reload = app.debug  
     # Force Flask/Jinja template auto-reload
     app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -56,6 +88,7 @@ def create_app():
         def clear_jinja_cache():
             app.jinja_env.cache = {}
     
+
     
     # Set up logging
     log_level = app.config.get("LOG_LEVEL", "INFO")
@@ -81,7 +114,11 @@ def create_app():
     
     @app.context_processor
     def inject_env():
-        return dict(env_name=app.config.get("ENV_NAME", "Production"), debug=app.debug)
+        return dict(
+            env_name=app.config.get("ENV_NAME")
+            or os.getenv("APP_CONFIG", "development").capitalize(),
+            debug=app.debug
+        )
     
     @app.shell_context_processor
     def make_shell_context():
@@ -96,6 +133,5 @@ def create_app():
     @app.errorhandler(500)
     def server_error(_):
         return ("500 Error - Internal Server Error", 500)
-    
     
     return app

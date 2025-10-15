@@ -14,7 +14,11 @@
   </style>
 </head>
 <body>
-
+  {% if SHOW_DEV_BANNER %}
+    <div id="dev-banner" style="background:#ffcc00;color:#000;padding:8px;text-align:center;font-weight:600;">
+      This is a Dev page.
+    </div>
+  {% endif %}
   <!-- Floating Flash Messages -->
   {% include "flash.html" %}
 

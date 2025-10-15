@@ -50,6 +50,7 @@ class Config:
     """
     SECRET_KEY = SECRET_KEY
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SHOW_DEV_BANNER = False
     # Security Defaults
     SESSION_COOKIE_SECURE = True  # Cookies only sent over HTTPS
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access
@@ -70,6 +71,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV_NAME = "Development"
+    SHOW_DEV_BANNER = True
     TEMPLATES_AUTO_RELOAD = True
     SESSION_COOKIE_SECURE = False  # Allow for local dev
     REMEMBER_COOKIE_SECURE = False  # Allow for local dev
@@ -81,6 +83,7 @@ class TestingConfig(Config):
     TESTING = True
     DEBUG = True
     ENV_NAME = "Testing"
+    SHOW_DEV_BANNER = False
     SESSION_COOKIE_SECURE = False  
     SQLALCHEMY_DATABASE_URI = build_postgres_uri() or f"sqlite:///{os.path.join(basedir, 'test_database.db')}"
     WTF_CSRF_ENABLED = False
@@ -91,7 +94,8 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     ENV_NAME = "Production"
-    SQLALCHEMY_DATABASE_URI = None # 
+    SHOW_DEV_BANNER = False
+    SQLALCHEMY_DATABASE_URI = None 
     
     @classmethod
     def init_db_uri(cls):
@@ -100,6 +104,8 @@ class ProductionConfig(Config):
             raise ValueError("Postgres URI must be set in Production!") # Ensure DB URI is set
          if not os.getenv("SECRET_KEY"):
             raise ValueError("Production SECRET_KEY must be set as an environment variable!")
+         return cls.SQLALCHEMY_DATABASE_URI
+
 """
 Configuration Loader:
 - Reads APP_CONFIG from environment (default: development)
